@@ -1,0 +1,31 @@
+name: BountyfulSeas
+version: '${version}'
+
+main: com.nekyia.bountyfulSeas.BountyfulSeas
+api-version: '26.2'
+load: POSTWORLD
+
+authors: [ gerryxn ]
+
+# Fish item blueprints are written while Nexo is still loading, so Nexo reads
+# them in its own item pass instead of needing a reload.
+loadbefore: [ Nexo ]
+
+# Ordering only, not a requirement: enabling after Pl3xMap means its worlds are
+# registered before the water layer is drawn. Without Pl3xMap there is no overlay
+# and everything else still works.
+softdepend: [ Pl3xMap ]
+
+commands:
+  bs:
+    description: BountyfulSeas commands.
+    usage: /bs debug | /bs watermapregenerate
+    aliases: [ bountyfulseas ]
+
+permissions:
+  bountyfulseas.debug:
+    description: Allows inspecting fishing chances at the bobber.
+    default: op
+  bountyfulseas.watermapregenerate:
+    description: Allows rescanning the world and rebuilding the water map.
+    default: op
