@@ -59,25 +59,6 @@ public final class FishLoader {
             KEY_MODIFIER, KEY_CONDITION,
             KEY_BAIT_LOCKED, KEY_SPAWN_WEIGHT, KEY_RARITY, KEY_ON_EAT, KEY_LORE);
 
-    /**
-     * Settings that used to exist and are now ignored rather than rejected.
-     *
-     * <p>Weight was dropped in favour of length alone. A config written before that
-     * is out of date, not broken, so it keeps its fish and gets told to tidy up.
-     */
-    private static final Set<String> DEPRECATED_KEYS = Set.of("min_weight", "max_weight");
-
-    /**
-     * Tier names that have been renamed, and what they are now.
-     *
-     * <p>Same reasoning as the deprecated keys: a config written before a rename is
-     * out of date, not broken. Rejecting it would empty a server's fish table over
-     * a word, which is exactly what removing the weight settings once did.
-     */
-    private static final Map<String, String> RENAMED_RARITIES = Map.of(
-            "common", "uncommon",
-            "trash", "misc");
-
     private static final Set<String> KNOWN_ON_EAT_KEYS = Set.of(KEY_SATURATION, KEY_EFFECTS);
 
     private static final Set<String> KNOWN_EFFECT_KEYS =
@@ -175,13 +156,10 @@ public final class FishLoader {
 
     private static Fish parse(String file, String category, String id,
                               ConfigurationSection section, List<FishProblem> problems) {
-        long fatalBefore = problems.stream().filter(FishProblem::fatal).count();
+        int before = problems.size();
 
         for (String key : section.getKeys(false)) {
-            if (DEPRECATED_KEYS.contains(key)) {
-                problems.add(FishProblem.notice(file, id,
-                        "still sets " + key + ", which no longer exists and is ignored"));
-            } else if (!KNOWN_KEYS.contains(key)) {
+            if (!KNOWN_KEYS.contains(key)) {
                 problems.add(FishProblem.fish(file, id, "has the unknown setting " + key));
             }
         }
@@ -217,8 +195,7 @@ public final class FishLoader {
         }
         OnEat onEat = onEat(file, id, section, problems);
 
-        // Only a fatal problem costs the fish its place; a notice just gets said.
-        if (problems.stream().filter(FishProblem::fatal).count() != fatalBefore) {
+        if (problems.size() != before) {
             return null;
         }
 
@@ -448,15 +425,7 @@ public final class FishLoader {
             problems.add(FishProblem.fish(file, id, KEY_RARITY + " must be text"));
             return null;
         }
-        String named = text.trim().toLowerCase(Locale.ROOT);
-        String renamed = RENAMED_RARITIES.get(named);
-        if (renamed != null) {
-            problems.add(FishProblem.notice(file, id, KEY_RARITY + " " + named
-                    + " has been renamed to " + renamed + ", which is what was used"));
-            named = renamed;
-        }
-
-        Rarity rarity = match(Rarity.class, named);
+        Rarity rarity = match(Rarity.class, text);
         if (rarity == null) {
             problems.add(FishProblem.fish(file, id, KEY_RARITY + " " + text
                     + " is unknown, expected one of: " + allowed(Rarity.class)));

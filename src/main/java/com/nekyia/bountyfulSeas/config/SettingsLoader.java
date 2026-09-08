@@ -79,9 +79,9 @@ public final class SettingsLoader {
      * nothing.
      */
     private static Map<String, Double> rarityChances(FileConfiguration config, List<String> problems) {
-        // Defaults live here as well as in config.yml, because a config written
-        // before this section existed would otherwise leave every tier at zero -
-        // and a zero everywhere means nothing is ever caught, with nothing said.
+        // Defaults live here as well as in config.yml, because a tier deleted from
+        // the file would otherwise sit at zero - and a zero is silent, so nobody
+        // would connect the missing line to the fish that stopped turning up.
         Map<String, Double> chances = new LinkedHashMap<>(DEFAULT_RARITY_CHANCES);
 
         ConfigurationSection section = config.getConfigurationSection("rarity-chances");

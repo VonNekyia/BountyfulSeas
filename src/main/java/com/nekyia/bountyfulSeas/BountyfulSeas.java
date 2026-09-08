@@ -385,20 +385,11 @@ public final class BountyfulSeas extends JavaPlugin {
         FishLoadResult result = FishLoader.load(folder);
         fish = result.library();
 
-        List<FishProblem> rejected = result.problems().stream().filter(FishProblem::fatal).toList();
-        List<FishProblem> outdated = result.problems().stream().filter(problem -> !problem.fatal()).toList();
-
-        if (!rejected.isEmpty()) {
-            getLogger().log(Level.SEVERE, "{0} fish definition(s) were rejected:", rejected.size());
-            for (FishProblem problem : rejected) {
+        List<FishProblem> problems = result.problems();
+        if (!problems.isEmpty()) {
+            getLogger().log(Level.SEVERE, "{0} fish definition(s) were rejected:", problems.size());
+            for (FishProblem problem : problems) {
                 getLogger().log(Level.SEVERE, "  {0}", problem);
-            }
-        }
-        if (!outdated.isEmpty()) {
-            // Loaded anyway, so this is a nudge to tidy the file, not a failure.
-            getLogger().log(Level.WARNING, "{0} outdated setting(s), ignored:", outdated.size());
-            for (FishProblem problem : outdated) {
-                getLogger().log(Level.WARNING, "  {0}", problem);
             }
         }
 
