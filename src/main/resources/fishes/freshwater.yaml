@@ -38,7 +38,7 @@ lake_carp:
   depth: [shallow]
 
   spawn_weight: 120
-  rarity: common
+  rarity: uncommon
 
   on_eat:
     saturation: 5
@@ -56,7 +56,7 @@ river_dace:
   water_type: [river]
 
   spawn_weight: 130
-  rarity: common
+  rarity: uncommon
 
   on_eat:
     saturation: 2

@@ -49,31 +49,45 @@ ten give it the same odds.
 
 | Tier | Default chance | Notes |
 |---|---|---|
-| `common` | 75 | |
+| `uncommon` | 75 | the buffer: enchantment bonuses come out of here |
 | `rare` | 15 | |
-| `trash` | 5 | not a fish, no length |
-| `epic` | 2 | |
-| `misc` | 2 | not a fish, no length |
+| `misc` | 5 | junk, not a fish, no length |
+| `epic` | 4 | |
 | `legendary` | 0.5 | |
-| `treasure` | 0.5 | not a fish, no length |
-| `mythic` | 0.05 | rolls its length in the top tenth of its range |
+| `treasure` | 0.5 | enchanted books and the like, not a fish, no length |
+| `mythic` | 0.05 | outside the hundred on purpose, and never lifted |
 | `signature` | 0 | never rolled; for hand-placed fish |
 
-Chances are **relative weights**, not percentages. They are normalised against
-the tiers present at a spot, so they need not add to 100, and a tier nobody has
-written an entry for costs nothing.
+Chances are **weights**. The base set adds up to 100 so the numbers can be read
+as percentages, but only the tiers actually present at a spot take part in the
+draw, so a tier nobody has written an entry for costs nothing.
 
 ### Rod enchantments
 
-Both scale a tier's **base** chance per level rather than adding percentage
-points, so the balance survives whatever the base numbers are set to.
+Two enchantments, two jobs, and neither touches the other's tiers.
 
-- **Lure** lifts every *fish* tier above common. It does nothing for `trash`,
-  `misc` or `treasure`.
-- **Luck of the Sea** lifts `treasure`, and only `treasure`.
+- **Luck of the Fish** (levels I to V) lifts `rare`, `epic` and `legendary`.
+  A custom enchantment, defined by the datapack written to
+  `plugins/BountyfulSeas/datapack` - copy it into `<world>/datapacks`.
+- **Luck of the Sea** lifts `treasure`, and only `treasure` - that is where the
+  enchanted books are.
+- **Lure** is off by default, keeping its vanilla job of making fish bite sooner.
+  Set its rate above 0 to have it lift the same tiers as Luck of the Fish; the
+  two then multiply.
 
-Because chances are normalised, raising the rarer tiers lowers `common` on its
-own. Nothing is subtracted by hand. Both rates are set in `config.yml`.
+Each level adds a share of the tier's **base** weight, and everything added is
+taken back out of `uncommon`. That is what keeps the two independent: a rod
+carrying both applies each in full, and the total still comes to what it was.
+`misc` and `mythic` are lifted by nothing at all.
+
+| | `uncommon` | `rare` | `epic` | `legendary` | `treasure` |
+|---|---|---|---|---|---|
+| base | 75 | 15 | 4 | 0.5 | 0.5 |
+| Luck of the Fish I | 73.05 | 16.5 | 4.4 | 0.55 | 0.5 |
+| Luck of the Fish V | 65.25 | 22.5 | 6 | 0.75 | 0.5 |
+| Luck of the Sea V | 74.75 | 15 | 4 | 0.5 | 0.75 |
+
+Both rates are set in `config.yml`.
 
 ### Swarms
 
@@ -102,7 +116,7 @@ herring:
   depth: [shallow]
 
   spawn_weight: 140
-  rarity: common
+  rarity: uncommon
 
   on_eat:
     saturation: 2

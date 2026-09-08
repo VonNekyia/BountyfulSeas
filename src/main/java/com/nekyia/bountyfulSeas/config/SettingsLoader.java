@@ -24,11 +24,10 @@ public final class SettingsLoader {
 
     /** Must stay in step with the {@code rarity-chances} block in config.yml. */
     private static final Map<String, Double> DEFAULT_RARITY_CHANCES = Map.of(
-            "common", 75.0,
+            "uncommon", 75.0,
             "rare", 15.0,
-            "trash", 5.0,
-            "epic", 2.0,
-            "misc", 2.0,
+            "misc", 5.0,
+            "epic", 4.0,
             "legendary", 0.5,
             "treasure", 0.5,
             "mythic", 0.05,
@@ -72,11 +71,12 @@ public final class SettingsLoader {
     }
 
     /**
-     * Relative chances per tier.
+     * The weight of each tier.
      *
-     * <p>Relative on purpose: they are normalised against whatever is actually
-     * available at a spot, so they do not have to add up to a hundred and a tier
-     * nobody has written a fish for costs nothing.
+     * <p>The base set adds up to a hundred and what an enchantment adds is taken
+     * back out of the buffer, so it keeps adding up. Only the tiers present at a
+     * spot take part in the draw, so one nobody has written a fish for costs
+     * nothing.
      */
     private static Map<String, Double> rarityChances(FileConfiguration config, List<String> problems) {
         // Defaults live here as well as in config.yml, because a config written

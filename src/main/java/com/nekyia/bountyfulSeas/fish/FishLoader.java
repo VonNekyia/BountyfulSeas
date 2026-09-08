@@ -67,6 +67,17 @@ public final class FishLoader {
      */
     private static final Set<String> DEPRECATED_KEYS = Set.of("min_weight", "max_weight");
 
+    /**
+     * Tier names that have been renamed, and what they are now.
+     *
+     * <p>Same reasoning as the deprecated keys: a config written before a rename is
+     * out of date, not broken. Rejecting it would empty a server's fish table over
+     * a word, which is exactly what removing the weight settings once did.
+     */
+    private static final Map<String, String> RENAMED_RARITIES = Map.of(
+            "common", "uncommon",
+            "trash", "misc");
+
     private static final Set<String> KNOWN_ON_EAT_KEYS = Set.of(KEY_SATURATION, KEY_EFFECTS);
 
     private static final Set<String> KNOWN_EFFECT_KEYS =
@@ -437,7 +448,15 @@ public final class FishLoader {
             problems.add(FishProblem.fish(file, id, KEY_RARITY + " must be text"));
             return null;
         }
-        Rarity rarity = match(Rarity.class, text);
+        String named = text.trim().toLowerCase(Locale.ROOT);
+        String renamed = RENAMED_RARITIES.get(named);
+        if (renamed != null) {
+            problems.add(FishProblem.notice(file, id, KEY_RARITY + " " + named
+                    + " has been renamed to " + renamed + ", which is what was used"));
+            named = renamed;
+        }
+
+        Rarity rarity = match(Rarity.class, named);
         if (rarity == null) {
             problems.add(FishProblem.fish(file, id, KEY_RARITY + " " + text
                     + " is unknown, expected one of: " + allowed(Rarity.class)));

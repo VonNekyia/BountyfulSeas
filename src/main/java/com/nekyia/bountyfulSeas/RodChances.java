@@ -10,23 +10,25 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.function.ToDoubleFunction;
 
 /**
- * Works out a player's tier chances from the rod in their hands.
+ * Works out a player's tier weights from the rod in their hands.
  *
- * <p>Enchantments scale a tier's <em>base</em> chance rather than adding
- * percentage points, so the balance survives whatever the base numbers are:
+ * <p>Two enchantments, two jobs, and neither touches the other's tiers:
  *
  * <ul>
- *   <li><b>Luck of the Fish</b> lifts every fish tier above common.</li>
- *   <li><b>Luck of the Sea</b> lifts treasure, and only treasure.</li>
- *   <li><b>Lure</b> can do what Luck of the Fish does, and is off by default so
- *       it keeps its vanilla job of making the fish bite sooner.</li>
+ *   <li><b>Luck of the Fish</b> raises rare, epic and legendary.</li>
+ *   <li><b>Luck of the Sea</b> raises treasure, where the enchanted books are.</li>
  * </ul>
  *
- * <p>Chances are relative and normalised when they are rolled, so raising the
- * rarer tiers lowers common on its own - there is nothing to subtract by hand.
+ * <p>Each adds a share of the tier's <em>base</em> weight per level, and everything
+ * added is taken out of {@code uncommon}. That is what keeps the two independent:
+ * a rod with both applies each in full, and the total still comes to what it was.
+ * Normalising instead would have quietly diluted misc and treasure every time the
+ * fish tiers went up, which is not what either enchantment is for.
  */
 final class RodChances {
 
@@ -34,35 +36,56 @@ final class RodChances {
     }
 
     /**
-     * The chance of each tier for this player, rod included.
+     * The weight of each tier for this player, rod included.
      *
-     * @param player   whose rod to read, or null for the unenchanted odds
-     * @param settings the configured base chances and bonuses
+     * @param player   whose rod to read, or null for the unenchanted weights
+     * @param settings the configured base weights and bonuses
      */
     static ToDoubleFunction<Rarity> of(Player player, Settings settings) {
+        Map<Rarity, Double> weights = weightsFor(player, settings);
+        return rarity -> weights.getOrDefault(rarity, 0.0);
+    }
+
+    /** Exposed for reporting, so what is shown is what will be rolled. */
+    static Map<Rarity, Double> weightsFor(Player player, Settings settings) {
         ItemStack rod = rodOf(player);
         Settings.EnchantmentSettings bonuses = settings.enchantments();
 
-        // Lure and Luck of the Fish both lift the fish tiers, so they multiply
-        // together rather than one winning.
+        // Lure is off by default and does the same job as Luck of the Fish when
+        // switched on, so the two multiply into one figure for the fish tiers.
         double fish = bonuses.lureMultiplier(levelOf(rod, Enchantment.LURE))
                 * bonuses.fishMultiplier(levelOf(rod, custom(bonuses.fishKey())));
-        double treasure = bonuses.luckMultiplier(levelOf(rod, Enchantment.LUCK_OF_THE_SEA));
+        double sea = bonuses.luckMultiplier(levelOf(rod, Enchantment.LUCK_OF_THE_SEA));
 
-        return rarity -> {
+        Map<Rarity, Double> weights = new EnumMap<>(Rarity.class);
+        double added = 0;
+
+        for (Rarity rarity : Rarity.values()) {
             double base = settings.chanceOf(rarity.configName());
-            if (base <= 0) {
-                // A tier switched off stays off; a multiplier cannot revive it.
-                return 0;
+            double multiplier = rarity.liftedByFishLuck() ? fish
+                    : rarity.liftedBySeaLuck() ? sea
+                    : 1;
+
+            double raised = base * multiplier;
+            added += raised - base;
+            weights.put(rarity, raised);
+        }
+
+        // The buffer pays for all of it, and cannot go below nothing.
+        Rarity buffer = bufferOf(weights);
+        if (buffer != null) {
+            weights.put(buffer, Math.max(0, weights.get(buffer) - added));
+        }
+        return weights;
+    }
+
+    private static Rarity bufferOf(Map<Rarity, Double> weights) {
+        for (Rarity rarity : weights.keySet()) {
+            if (rarity.isBuffer()) {
+                return rarity;
             }
-            if (rarity == Rarity.TREASURE) {
-                return base * treasure;
-            }
-            if (rarity.isFish() && rarity != Rarity.COMMON) {
-                return base * fish;
-            }
-            return base;
-        };
+        }
+        return null;
     }
 
     /**

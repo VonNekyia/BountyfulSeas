@@ -8,26 +8,28 @@ package com.nekyia.bountyfulSeas.fish;
  * chosen tier, {@code spawn_weight} decides between the entries.
  *
  * <p>Two of these are not fish at all: {@link #MISC} is junk and {@link #TREASURE}
- * is something worth having. Both carry no length, which is why they are tiers
- * rather than modifiers - what comes up on the line is one roll, and junk competes
- * in it like everything else.
+ * is worth having - enchanted books and the like. Both carry no length, which is
+ * why they are tiers rather than modifiers: what comes up on the line is one roll,
+ * and junk competes in it like everything else.
+ *
+ * <p>{@link #UNCOMMON} is the buffer. Everything an enchantment adds to a better
+ * tier is taken out of it, so the odds always add up to what they started at.
  */
 public enum Rarity implements ConfigValue {
 
-    COMMON,
+    /** The everyday catch, and the pool better drops are paid for out of. */
+    UNCOMMON,
+
     RARE,
 
-    /** Rubbish. Not a fish, so it has no length. */
-    TRASH,
+    /** Junk. Not a fish, so it has no length, and no enchantment lifts it. */
+    MISC,
 
     EPIC,
 
-    /** Odds and ends. Not a fish, so it has no length. */
-    MISC,
-
     LEGENDARY,
 
-    /** Worth having. Not a fish, so it has no length. */
+    /** Worth having. Not a fish, so it has no length. Lifted by Luck of the Sea. */
     TREASURE,
 
     /**
@@ -46,14 +48,30 @@ public enum Rarity implements ConfigValue {
         return !isFish();
     }
 
-    /**
-     * Whether this tier holds actual fish.
-     *
-     * <p>Lure is a fishing enchantment, so it lifts the rarer fish tiers and leaves
-     * the junk and the treasure alone - those are what Luck of the Sea is for.
-     */
+    /** Whether this tier holds actual fish. */
     public boolean isFish() {
-        return this != TRASH && this != MISC && this != TREASURE;
+        return this != MISC && this != TREASURE;
+    }
+
+    /**
+     * Whether Luck of the Fish raises this tier.
+     *
+     * <p>Named outright rather than derived from {@link #isFish()}: the buffer is a
+     * fish tier too and must not lift itself, and mythic is deliberately left out so
+     * that no enchantment can make it ordinary.
+     */
+    public boolean liftedByFishLuck() {
+        return this == RARE || this == EPIC || this == LEGENDARY;
+    }
+
+    /** Whether Luck of the Sea raises this tier. */
+    public boolean liftedBySeaLuck() {
+        return this == TREASURE;
+    }
+
+    /** Whether the chance added to better tiers is taken out of this one. */
+    public boolean isBuffer() {
+        return this == UNCOMMON;
     }
 
     /** Whether this tier rolls its length at the top of the entry's range. */

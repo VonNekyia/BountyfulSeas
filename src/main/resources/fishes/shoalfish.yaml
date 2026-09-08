@@ -15,7 +15,7 @@ herring:
   depth: [shallow]
 
   spawn_weight: 140
-  rarity: common
+  rarity: uncommon
 
   on_eat:
     saturation: 2
