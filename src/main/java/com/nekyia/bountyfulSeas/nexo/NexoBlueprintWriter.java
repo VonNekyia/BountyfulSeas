@@ -238,14 +238,17 @@ public final class NexoBlueprintWriter {
     /**
      * Collects every item id and every custom model data value Nexo already knows,
      * so a generated stub never shadows a hand made item or steals its model data.
-     * The generated file itself is left out, because its own ids are not a clash.
+     *
+     * <p>The generated file counts for model data but not for ids. Its ids are ours
+     * to rewrite, so treating them as taken would stop us updating our own entries -
+     * but its model data is every bit as spoken for as anybody else's, and skipping
+     * it made allocation start from the base again on every run and hand a new entry
+     * a number one of our own already had.
      */
     private static void scanExisting(Path itemsFolder, Path target, Set<String> ids, Set<Integer> modelData) {
         try (Stream<Path> paths = Files.walk(itemsFolder)) {
             for (Path file : paths.filter(Files::isRegularFile).filter(NexoBlueprintWriter::isYaml).toList()) {
-                if (file.equals(target)) {
-                    continue;
-                }
+                boolean ours = file.equals(target);
                 YamlConfiguration yaml = new YamlConfiguration();
                 try {
                     yaml.load(file.toFile());
@@ -254,7 +257,9 @@ public final class NexoBlueprintWriter {
                     continue;
                 }
                 for (String id : yaml.getKeys(false)) {
-                    ids.add(id);
+                    if (!ours) {
+                        ids.add(id);
+                    }
                     ConfigurationSection section = yaml.getConfigurationSection(id);
                     if (section == null) {
                         continue;
