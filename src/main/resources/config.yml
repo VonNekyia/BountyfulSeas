@@ -1,11 +1,16 @@
 ﻿# BountyfulSeas
 
 water-map:
-  # Path to the water-analyzer executable from the minecraft-water-map-generator
-  # project. Leave empty and /bs watermapregenerate will tell you so rather than
-  # guessing where it lives.
+  # Path to the water-analyzer executable.
   #
-  #   analyzer: "C:/path/to/water-analyzer.exe"
+  # Normally leave this empty. A copy is bundled in the plugin and unpacked to
+  # plugins/BountyfulSeas/bin on first use, so nothing has to be installed.
+  #
+  # The bundled copy is a native binary and is built for one platform only - the
+  # one the jar was built on. Set a path here when running somewhere else, or to
+  # point at a newer build than the one shipped:
+  #
+  #   analyzer: "/opt/water-analyzer"
   analyzer: ""
 
   # Rescan the world every time the server starts, so the map keeps up as the

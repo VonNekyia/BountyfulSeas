@@ -104,9 +104,9 @@ public final class BountyfulSeas extends JavaPlugin {
             return;
         }
 
-        if (!settings.hasAnalyzer()) {
-            // Expected on a fresh install, so this is a note and not a complaint.
-            getLogger().info("Not rescanning on start: water-map.analyzer is not set in config.yml.");
+        if (AnalyzerBinary.resolve(this, settings.analyzer()) == null) {
+            // Expected where no analyzer ships for the platform, so this is a note.
+            getLogger().info("Not rescanning on start: no water analyzer available.");
             return;
         }
 
@@ -325,11 +325,13 @@ public final class BountyfulSeas extends JavaPlugin {
      * because that is where the map and the overlay live.
      */
     public void regenerateWaterMap(CommandSender sender) {
-        if (!settings.hasAnalyzer()) {
-            String reason = "water-map.analyzer is not set in config.yml";
+        Path analyzer = AnalyzerBinary.resolve(this, settings.analyzer());
+        if (analyzer == null) {
+            String reason = "no analyzer bundled with this build and none configured";
             sender.sendMessage(Component.text(
-                    "No analyzer configured. Set water-map.analyzer in the BountyfulSeas config.yml "
-                            + "to the water-analyzer executable, then try again.", NamedTextColor.RED));
+                    "No water analyzer available. This build ships none for your platform, so set "
+                            + "water-map.analyzer in the BountyfulSeas config.yml to one you have built.",
+                    NamedTextColor.RED));
             // Logged as well: a refusal only the player can see is one nobody can
             // debug from the console afterwards.
             getLogger().log(Level.WARNING, "Water map regeneration refused for {0}: {1}",
@@ -337,7 +339,6 @@ public final class BountyfulSeas extends JavaPlugin {
             return;
         }
 
-        Path analyzer = Path.of(settings.analyzer());
         Path world = getServer().getWorlds().getFirst().getWorldFolder().toPath();
         Path output = getDataFolder().toPath();
         List<String> arguments = settings.analyzerFlags();

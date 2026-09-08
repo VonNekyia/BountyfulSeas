@@ -26,6 +26,18 @@ val terranovaLibJar = testServerPluginFolder.map { folder ->
     folder.asFileTree.matching { include("TerranovaLib*.jar") }
 }
 
+// The water-analyzer executable, bundled into the jar when it has been built.
+// Override the folder with -PwaterAnalyzerDir=<path>. When it is not there the jar
+// ships without it and the plugin falls back to a path from config.yml, so this is
+// never a build requirement - and the binary is copied in, never committed.
+val analyzerBinary = providers.gradleProperty("waterAnalyzerDir")
+    .map { layout.projectDirectory.dir(it) }
+    .orElse(layout.projectDirectory.dir("../minecraft-water-map-generator/target/release"))
+    .map { folder ->
+        // Unanchored patterns match the folder itself only, not all of target/.
+        folder.asFileTree.matching { include("water-analyzer", "water-analyzer.exe") }
+    }
+
 dependencies {
     paperweight.paperDevBundle(libs.versions.paper.api.get())
 
@@ -82,6 +94,12 @@ tasks {
         val props = mapOf("version" to version)
         filesMatching("plugin.yml") {
             expand(props)
+        }
+
+        // Only expanded in plugin.yml above; a native binary must not be run
+        // through the token filter or it comes out corrupted.
+        from(analyzerBinary) {
+            into("bin")
         }
     }
 }
