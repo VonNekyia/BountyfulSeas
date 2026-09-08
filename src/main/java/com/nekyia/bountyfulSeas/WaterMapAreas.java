@@ -3,12 +3,14 @@ package com.nekyia.bountyfulSeas;
 import com.nekyia.bountyfulSeas.fish.WaterType;
 import com.nekyia.bountyfulSeas.pl3xmap.MapArea;
 import com.nekyia.bountyfulSeas.pl3xmap.MapPoint;
+import com.nekyia.bountyfulSeas.swarm.Swarms;
 import com.nekyia.bountyfulSeas.water.WaterMap;
 import com.nekyia.bountyfulSeas.water.WaterRegion;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 /**
  * Turns scanned water regions into shapes the map can draw.
@@ -26,18 +28,21 @@ final class WaterMapAreas {
     private WaterMapAreas() {
     }
 
-    static List<MapArea> from(WaterMap map) {
+    /** Gold, so a swarm is the thing the eye lands on. */
+    private static final int SWARM_RGB = 0xFFC132;
+
+    static List<MapArea> from(WaterMap map, Swarms swarms) {
         List<MapArea> areas = new ArrayList<>(map.regionCount());
         for (int id = 0; id < map.regionCount(); id++) {
-            areas.add(area(map, map.region(id)));
+            areas.add(area(map, map.region(id), swarms.fishAt(id)));
         }
         return List.copyOf(areas);
     }
 
-    private static MapArea area(WaterMap map, WaterRegion region) {
+    private static MapArea area(WaterMap map, WaterRegion region, String swarmingFish) {
         WaterType type = WaterSpot.waterTypeOf(region);
-        int rgb = colorOf(type);
-        String label = label(region, type);
+        int rgb = swarmingFish != null ? SWARM_RGB : colorOf(type);
+        String label = label(region, type, swarmingFish);
 
         return new MapArea() {
             @Override
@@ -77,12 +82,54 @@ final class WaterMapAreas {
         };
     }
 
-    private static String label(WaterRegion region, WaterType type) {
-        return "<b>" + capitalise(type.name()) + "</b><br>"
-                + "region #" + region.id() + "<br>"
-                + region.columns() + " columns<br>"
-                + "depth " + region.meanDepth() + " / " + region.maxDepth() + " blocks<br>"
-                + "surface y " + region.surfaceY();
+    /**
+     * What this water is, in the words the fish rules use.
+     *
+     * <p>Both vocabularies are shown where they differ - the map calls a warm sea
+     * "sea", a fish definition calls it an ocean - so somebody reading the map can
+     * tell which fish would accept the spot without translating in their head.
+     */
+    private static String label(WaterRegion region, WaterType type, String swarmingFish) {
+        StringBuilder text = new StringBuilder();
+
+        // Pl3xMap draws tooltips on a dark background and inherits a dark text
+        // colour, so unstyled text comes out invisible - a black box on hover.
+        // The colour has to be stated here rather than left to the page.
+        text.append("<div style=\"color:#D9D9D9;font-family:sans-serif;line-height:1.4\">");
+
+        if (swarmingFish != null) {
+            text.append("<span style=\"color:#FFC132\"><b>Swarm: ")
+                    .append(swarmingFish).append("</b></span><br>");
+        }
+
+        text.append("<b>").append(capitalise(type.name())).append("</b>");
+        if (region.kind() != null && !region.kind().name().equalsIgnoreCase(type.name())) {
+            text.append(" <i>(map: ").append(capitalise(region.kind().name())).append(")</i>");
+        }
+        text.append("<br>");
+
+        text.append(capitalise(String.valueOf(region.temperature())))
+                .append(", ")
+                .append(region.depth() == null ? "unmeasured" : capitalise(region.depth().name()))
+                .append("<br>");
+
+        if (!region.modifiers().isEmpty()) {
+            text.append("Modifiers: ")
+                    .append(region.modifiers().stream()
+                            .map(modifier -> capitalise(modifier.name()))
+                            .collect(Collectors.joining(", ")))
+                    .append("<br>");
+        }
+
+        text.append("<span style=\"color:#9A9A9A\">")
+                .append("region #").append(region.id()).append("<br>")
+                .append(region.columns()).append(" columns<br>")
+                .append("depth ").append(region.meanDepth()).append(" / ")
+                .append(region.maxDepth()).append(" blocks<br>")
+                .append("surface y ").append(region.surfaceY())
+                .append("</span></div>");
+
+        return text.toString();
     }
 
     private static String capitalise(String text) {

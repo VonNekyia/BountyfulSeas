@@ -32,8 +32,6 @@ public final class FishLoader {
 
     private static final String KEY_NAME = "fish_name";
     private static final String KEY_ITEM = "fish_item";
-    private static final String KEY_MIN_WEIGHT = "min_weight";
-    private static final String KEY_MAX_WEIGHT = "max_weight";
     private static final String KEY_MIN_LENGTH = "min_length";
     private static final String KEY_MAX_LENGTH = "max_length";
     private static final String KEY_WATER_TYPE = "water_type";
@@ -56,11 +54,18 @@ public final class FishLoader {
 
     private static final Set<String> KNOWN_KEYS = Set.of(
             KEY_NAME, KEY_ITEM,
-            KEY_MIN_WEIGHT, KEY_MAX_WEIGHT,
             KEY_MIN_LENGTH, KEY_MAX_LENGTH,
             KEY_WATER_TYPE, KEY_TERRAIN, KEY_VEGETATION, KEY_DEPTH,
             KEY_MODIFIER, KEY_CONDITION,
             KEY_BAIT_LOCKED, KEY_SPAWN_WEIGHT, KEY_RARITY, KEY_ON_EAT, KEY_LORE);
+
+    /**
+     * Settings that used to exist and are now ignored rather than rejected.
+     *
+     * <p>Weight was dropped in favour of length alone. A config written before that
+     * is out of date, not broken, so it keeps its fish and gets told to tidy up.
+     */
+    private static final Set<String> DEPRECATED_KEYS = Set.of("min_weight", "max_weight");
 
     private static final Set<String> KNOWN_ON_EAT_KEYS = Set.of(KEY_SATURATION, KEY_EFFECTS);
 
@@ -159,10 +164,13 @@ public final class FishLoader {
 
     private static Fish parse(String file, String category, String id,
                               ConfigurationSection section, List<FishProblem> problems) {
-        int before = problems.size();
+        long fatalBefore = problems.stream().filter(FishProblem::fatal).count();
 
         for (String key : section.getKeys(false)) {
-            if (!KNOWN_KEYS.contains(key)) {
+            if (DEPRECATED_KEYS.contains(key)) {
+                problems.add(FishProblem.notice(file, id,
+                        "still sets " + key + ", which no longer exists and is ignored"));
+            } else if (!KNOWN_KEYS.contains(key)) {
                 problems.add(FishProblem.fish(file, id, "has the unknown setting " + key));
             }
         }
@@ -176,12 +184,9 @@ public final class FishLoader {
 
         List<String> lore = textList(file, id, section, problems);
 
-        double minWeight = number(file, id, section, KEY_MIN_WEIGHT, problems);
-        double maxWeight = number(file, id, section, KEY_MAX_WEIGHT, problems);
         double minLength = number(file, id, section, KEY_MIN_LENGTH, problems);
         double maxLength = number(file, id, section, KEY_MAX_LENGTH, problems);
 
-        checkRange(file, id, KEY_MIN_WEIGHT, minWeight, KEY_MAX_WEIGHT, maxWeight, problems);
         checkRange(file, id, KEY_MIN_LENGTH, minLength, KEY_MAX_LENGTH, maxLength, problems);
 
         Set<WaterType> waterTypes = enums(WaterType.class, file, id, section, KEY_WATER_TYPE, problems);
@@ -194,14 +199,20 @@ public final class FishLoader {
         boolean baitLocked = flag(file, id, section, problems);
         int spawnWeight = spawnWeight(file, id, section, problems);
         Rarity rarity = rarity(file, id, section, problems);
+        if (rarity != null && rarity.suppressesSize() && (minLength > 0 || maxLength > 0)) {
+            problems.add(FishProblem.fish(file, id, "is " + rarity.configName()
+                    + ", which is not a fish and carries no length, so "
+                    + KEY_MIN_LENGTH + " and " + KEY_MAX_LENGTH + " must be left out"));
+        }
         OnEat onEat = onEat(file, id, section, problems);
 
-        if (problems.size() != before) {
+        // Only a fatal problem costs the fish its place; a notice just gets said.
+        if (problems.stream().filter(FishProblem::fatal).count() != fatalBefore) {
             return null;
         }
 
         return new Fish(id, category, name, item, lore,
-                minWeight, maxWeight, minLength, maxLength,
+                minLength, maxLength,
                 waterTypes, terrains, vegetations, depths, modifiers, conditions,
                 baitLocked, spawnWeight, rarity, onEat);
     }

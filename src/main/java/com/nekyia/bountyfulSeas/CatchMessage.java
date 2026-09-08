@@ -1,8 +1,11 @@
 package com.nekyia.bountyfulSeas;
 
+import com.nekyia.bountyfulSeas.fish.Fish;
 import com.nekyia.bountyfulSeas.fishing.Catch;
+import com.nekyia.bountyfulSeas.stats.Milestone;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.inventory.ItemStack;
 
@@ -28,9 +31,22 @@ final class CatchMessage {
         return Component.empty()
                 .append(displayName(landed, stack))
                 .append(SEPARATOR)
-                .append(Component.text(format(landed.weight()) + " kg", NamedTextColor.WHITE))
-                .append(SEPARATOR)
                 .append(Component.text(format(landed.length()) + " cm", NamedTextColor.WHITE));
+    }
+
+    /**
+     * The line shown when a catch lands exactly on a milestone.
+     *
+     * <p>Only on the crossing itself, not on every catch past it, so the numeral
+     * stays worth seeing.
+     */
+    static Component milestone(Fish fish, Milestone earned, long catches) {
+        return Component.text("✦ ", NamedTextColor.GOLD)
+                .append(Component.text("Milestone ", NamedTextColor.YELLOW))
+                .append(Component.text(earned.numeral(), NamedTextColor.GOLD, TextDecoration.BOLD))
+                .append(Component.text("  ", NamedTextColor.DARK_GRAY))
+                .append(MiniMessage.miniMessage().deserialize(fish.name()))
+                .append(Component.text("  " + catches + " caught", NamedTextColor.DARK_GRAY));
     }
 
     private static Component displayName(Catch landed, ItemStack stack) {

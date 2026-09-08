@@ -5,6 +5,8 @@ import com.nekyia.bountyfulSeas.fish.FishLibrary;
 import com.nekyia.bountyfulSeas.fishing.Catch;
 import com.nekyia.bountyfulSeas.fishing.FishSelector;
 import com.nekyia.bountyfulSeas.nexo.NexoItemFactory;
+import com.nekyia.bountyfulSeas.config.Settings;
+import com.nekyia.bountyfulSeas.swarm.Swarms;
 import com.nekyia.bountyfulSeas.water.WaterMap;
 import com.nekyia.bountyfulSeas.water.WaterRegion;
 import org.bukkit.Location;
@@ -29,10 +31,24 @@ final class FishingListener implements Listener {
 
     private final Supplier<FishLibrary> fish;
     private final Supplier<WaterMap> waterMap;
+    private final Supplier<Swarms> swarms;
+    private final Supplier<Settings> settings;
+    private final CatchRecorder recorder;
 
-    FishingListener(Supplier<FishLibrary> fish, Supplier<WaterMap> waterMap) {
+    FishingListener(Supplier<FishLibrary> fish, Supplier<WaterMap> waterMap,
+                    Supplier<Swarms> swarms, Supplier<Settings> settings,
+                    CatchRecorder recorder) {
         this.fish = fish;
         this.waterMap = waterMap;
+        this.swarms = swarms;
+        this.settings = settings;
+        this.recorder = recorder;
+    }
+
+    /** Where a landed catch is sent to be counted. */
+    @FunctionalInterface
+    interface CatchRecorder {
+        void record(java.util.UUID player, String fishId, double length);
     }
 
     /**
@@ -60,8 +76,9 @@ final class FishingListener implements Listener {
             return;
         }
 
-        WaterSpot spot = WaterSpot.of(region, hook.getWorld());
-        Fish picked = FishSelector.select(fish.get().all(), spot, ThreadLocalRandom.current());
+        WaterSpot spot = WaterSpot.of(region, hook.getWorld(), swarms.get());
+        Fish picked = FishSelector.select(fish.get().all(), spot,
+                RodChances.of(event.getPlayer(), settings.get()), ThreadLocalRandom.current());
         if (picked == null) {
             return;
         }
@@ -75,6 +92,8 @@ final class FishingListener implements Listener {
         Catch landed = Catch.roll(picked, ThreadLocalRandom.current());
         caught.setItemStack(stack);
         event.getPlayer().sendMessage(CatchMessage.of(landed, stack));
+
+        recorder.record(event.getPlayer().getUniqueId(), picked.id(), landed.length());
     }
 
     private ItemStack itemFor(Fish picked) {

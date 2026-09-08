@@ -7,6 +7,7 @@ import com.nekyia.bountyfulSeas.fish.Terrain;
 import com.nekyia.bountyfulSeas.fish.Vegetation;
 import com.nekyia.bountyfulSeas.fish.WaterType;
 import com.nekyia.bountyfulSeas.fishing.WaterConditions;
+import com.nekyia.bountyfulSeas.swarm.Swarms;
 import com.nekyia.bountyfulSeas.water.WaterKind;
 import com.nekyia.bountyfulSeas.water.WaterDepth;
 import com.nekyia.bountyfulSeas.water.WaterModifier;
@@ -39,25 +40,34 @@ record WaterSpot(
         Vegetation vegetation,
         Depth depth,
         Set<Modifier> modifiers,
-        Set<Condition> conditions
+        Set<Condition> conditions,
+        int regionId,
+        Swarms swarms
 ) implements WaterConditions {
+
+    @Override
+    public boolean hasSwarmOf(String fishId) {
+        return swarms != null && swarms.isSwarming(fishId, regionId);
+    }
 
     /**
      * Reads a region into fish vocabulary. Takes the world conditions rather than
      * the world, so the translation can be exercised without a server running.
      */
-    static WaterSpot of(WaterRegion region, Set<Condition> conditions) {
+    static WaterSpot of(WaterRegion region, Set<Condition> conditions, Swarms swarms) {
         return new WaterSpot(
                 waterTypeOf(region),
                 terrain(region),
                 vegetation(region.temperature()),
                 depth(region.depth()),
                 modifiers(region),
-                conditions);
+                conditions,
+                region.id(),
+                swarms);
     }
 
-    static WaterSpot of(WaterRegion region, World world) {
-        return of(region, conditionsOf(world));
+    static WaterSpot of(WaterRegion region, World world, Swarms swarms) {
+        return of(region, conditionsOf(world), swarms);
     }
 
     /**
@@ -128,7 +138,11 @@ record WaterSpot(
         if (world.hasStorm()) {
             conditions.add(Condition.RAIN);
         }
+        if (world.isThundering()) {
+            conditions.add(Condition.STORM);
+        }
         return conditions;
     }
+
 
 }

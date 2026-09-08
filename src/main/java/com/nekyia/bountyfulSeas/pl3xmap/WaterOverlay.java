@@ -5,6 +5,7 @@ import net.pl3x.map.core.markers.Point;
 import net.pl3x.map.core.markers.marker.Marker;
 import net.pl3x.map.core.markers.marker.Polyline;
 import net.pl3x.map.core.markers.option.Options;
+import net.pl3x.map.core.markers.option.Tooltip;
 import net.pl3x.map.core.world.World;
 
 import java.util.ArrayList;
@@ -61,6 +62,9 @@ public final class WaterOverlay {
                     .fillColor(area.fillColor())
                     .strokeColor(area.strokeColor())
                     .tooltipContent(area.label())
+                    // Above the cursor, so the tooltip does not sit on top of the
+                    // water it is describing.
+                    .tooltipDirection(Tooltip.Direction.TOP)
                     .build();
 
             // One polyline per ring: the first is the outline, the rest are holes

@@ -28,14 +28,19 @@ final class BountyfulSeasCommand implements CommandExecutor, TabCompleter {
     private static final String REGENERATE = "watermapregenerate";
     private static final String REGENERATE_PERMISSION = "bountyfulseas.watermapregenerate";
 
-    private static final List<String> SUBCOMMANDS = List.of(DEBUG, REGENERATE);
+    private static final String GUIDE = "guide";
+    private static final String GUIDE_PERMISSION = "bountyfulseas.guide";
+
+    private static final List<String> SUBCOMMANDS = List.of(GUIDE, DEBUG, REGENERATE);
 
     private final DebugCommand debug;
     private final Consumer<CommandSender> regenerate;
+    private final GuideCommand guide;
 
-    BountyfulSeasCommand(DebugCommand debug, Consumer<CommandSender> regenerate) {
+    BountyfulSeasCommand(DebugCommand debug, Consumer<CommandSender> regenerate, GuideCommand guide) {
         this.debug = debug;
         this.regenerate = regenerate;
+        this.guide = guide;
     }
 
     @Override
@@ -47,6 +52,18 @@ final class BountyfulSeasCommand implements CommandExecutor, TabCompleter {
         }
 
         String sub = args[0].toLowerCase(Locale.ROOT);
+
+        if (sub.equals(GUIDE)) {
+            if (denied(sender, GUIDE_PERMISSION)) {
+                return true;
+            }
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage(Component.text("Only a player has a guide.", NamedTextColor.RED));
+                return true;
+            }
+            guide.run(player, args.length > 1 ? args[1] : null);
+            return true;
+        }
 
         if (sub.equals(DEBUG)) {
             if (denied(sender, DEBUG_PERMISSION)) {
@@ -85,24 +102,38 @@ final class BountyfulSeasCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
                                       @NotNull String label, @NotNull String[] args) {
-        if (args.length != 1) {
-            return List.of();
+        if (args.length == 1) {
+            String typed = args[0].toLowerCase(Locale.ROOT);
+            return SUBCOMMANDS.stream()
+                    .filter(name -> name.startsWith(typed))
+                    .filter(name -> sender.hasPermission(permissionFor(name)))
+                    .toList();
         }
-        String typed = args[0].toLowerCase(Locale.ROOT);
-        return SUBCOMMANDS.stream()
-                .filter(name -> name.startsWith(typed))
-                .filter(name -> sender.hasPermission(name.equals(DEBUG)
-                        ? DEBUG_PERMISSION : REGENERATE_PERMISSION))
-                .toList();
+        if (args.length == 2 && args[0].equalsIgnoreCase(GUIDE) && sender.hasPermission(GUIDE_PERMISSION)) {
+            String typed = args[1].toLowerCase(Locale.ROOT);
+            return guide.categories().stream().filter(name -> name.startsWith(typed)).toList();
+        }
+        return List.of();
+    }
+
+    private static String permissionFor(String subcommand) {
+        return switch (subcommand) {
+            case GUIDE -> GUIDE_PERMISSION;
+            case DEBUG -> DEBUG_PERMISSION;
+            default -> REGENERATE_PERMISSION;
+        };
     }
 
     private static Component usage() {
-        return Component.text("/bs debug", NamedTextColor.GRAY)
-                .append(Component.text("  -  what can be caught where your bobber is",
-                        NamedTextColor.DARK_GRAY))
+        return line("/bs guide", "your fishing guide and records")
                 .appendNewline()
-                .append(Component.text("/bs watermapregenerate", NamedTextColor.GRAY))
-                .append(Component.text("  -  rescan the world and redraw the map",
-                        NamedTextColor.DARK_GRAY));
+                .append(line("/bs debug", "what can be caught where your bobber is"))
+                .appendNewline()
+                .append(line("/bs watermapregenerate", "rescan the world and redraw the map"));
+    }
+
+    private static Component line(String command, String description) {
+        return Component.text(command, NamedTextColor.GRAY)
+                .append(Component.text("  -  " + description, NamedTextColor.DARK_GRAY));
     }
 }

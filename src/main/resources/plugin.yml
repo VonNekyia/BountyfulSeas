@@ -16,10 +16,20 @@ loadbefore: [ Nexo ]
 # and everything else still works.
 softdepend: [ Pl3xMap ]
 
+# The fishing guide is a RoseGUI menu, so this one is required rather than optional.
+depend: [ TerranovaLib ]
+
+# Downloaded by Paper at startup instead of being shaded in, which keeps the jar
+# small and lets the server share one copy. Versions must match build.gradle.kts.
+libraries:
+  - com.zaxxer:HikariCP:7.0.2
+  - org.mariadb.jdbc:mariadb-java-client:3.5.10
+  - com.github.ben-manes.caffeine:caffeine:3.2.3
+
 commands:
   bs:
     description: BountyfulSeas commands.
-    usage: /bs debug | /bs watermapregenerate
+    usage: /bs guide | /bs debug | /bs watermapregenerate
     aliases: [ bountyfulseas ]
 
 permissions:
@@ -29,3 +39,6 @@ permissions:
   bountyfulseas.watermapregenerate:
     description: Allows rescanning the world and rebuilding the water map.
     default: op
+  bountyfulseas.guide:
+    description: Allows opening the fishing guide.
+    default: true

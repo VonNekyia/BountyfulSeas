@@ -3,6 +3,8 @@ package com.nekyia.bountyfulSeas;
 import com.nekyia.bountyfulSeas.fish.FishLibrary;
 import com.nekyia.bountyfulSeas.fishing.Chance;
 import com.nekyia.bountyfulSeas.fishing.FishSelector;
+import com.nekyia.bountyfulSeas.config.Settings;
+import com.nekyia.bountyfulSeas.swarm.Swarms;
 import com.nekyia.bountyfulSeas.water.WaterMap;
 import com.nekyia.bountyfulSeas.water.WaterRegion;
 import net.kyori.adventure.text.Component;
@@ -26,10 +28,15 @@ final class DebugCommand {
 
     private final Supplier<FishLibrary> fish;
     private final Supplier<WaterMap> waterMap;
+    private final Supplier<Swarms> swarms;
+    private final Supplier<Settings> settings;
 
-    DebugCommand(Supplier<FishLibrary> fish, Supplier<WaterMap> waterMap) {
+    DebugCommand(Supplier<FishLibrary> fish, Supplier<WaterMap> waterMap,
+                 Supplier<Swarms> swarms, Supplier<Settings> settings) {
         this.fish = fish;
         this.waterMap = waterMap;
+        this.swarms = swarms;
+        this.settings = settings;
     }
 
     /** Reports the spot under the player's bobber. */
@@ -54,7 +61,7 @@ final class DebugCommand {
             return;
         }
 
-        WaterSpot spot = WaterSpot.of(region, at.getWorld());
+        WaterSpot spot = WaterSpot.of(region, at.getWorld(), swarms.get());
 
         player.sendMessage(Component.text("Fishing spot", NamedTextColor.AQUA));
         player.sendMessage(detail("position", at.getBlockX() + ", " + at.getBlockZ()));
@@ -68,7 +75,12 @@ final class DebugCommand {
         player.sendMessage(detail("modifiers", spot.modifiers().isEmpty() ? "none" : lower(spot.modifiers())));
         player.sendMessage(detail("conditions", lower(spot.conditions())));
 
-        List<Chance> chances = FishSelector.chances(fish.get().all(), spot);
+        String swarming = swarms.get().fishAt(region.id());
+        player.sendMessage(detail("swarm", swarming == null ? "none here" : swarming));
+
+        // The player's own rod, so the odds reported are the odds they will get.
+        List<Chance> chances = FishSelector.chances(fish.get().all(), spot,
+                RodChances.of(player, settings.get()));
         if (chances.isEmpty()) {
             player.sendMessage(error("Nothing lives here. Vanilla keeps the catch."));
             return;

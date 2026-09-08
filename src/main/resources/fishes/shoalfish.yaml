@@ -7,9 +7,6 @@ herring:
   fish_name: "<gray>Hering</gray>"
   fish_item: "nexo:herring"
 
-  min_weight: 0.2
-  max_weight: 1.1
-
   min_length: 15
   max_length: 32
 
@@ -22,4 +19,23 @@ herring:
 
   on_eat:
     saturation: 2
+    effects: []
+
+silver_shoal:
+  fish_name: "<aqua>Silberschwarm</aqua>"
+  fish_item: "nexo:silver_shoal"
+  lore:
+    - "Here today. Somewhere else by the next tide."
+
+  min_length: 10
+  max_length: 26
+
+  water_type: [ocean]
+  modifier: [swarm]
+
+  spawn_weight: 200
+  rarity: rare
+
+  on_eat:
+    saturation: 3
     effects: []

@@ -17,8 +17,6 @@ import java.util.Set;
  * @param name        display name, MiniMessage as everywhere else in the stack
  * @param item        the item this fish is handed out as, for example {@code nexo:my_fish}
  * @param lore        flavour text lines, shown under the category; possibly empty
- * @param minWeight   lower bound of the rolled weight, never above {@code maxWeight}
- * @param maxWeight   upper bound of the rolled weight
  * @param minLength   lower bound of the rolled length, never above {@code maxLength}
  * @param maxLength   upper bound of the rolled length
  * @param baitLocked  whether the fish can only be caught with a bait that names it
@@ -32,8 +30,6 @@ public record Fish(
         String name,
         String item,
         List<String> lore,
-        double minWeight,
-        double maxWeight,
         double minLength,
         double maxLength,
         Set<WaterType> waterTypes,
@@ -62,6 +58,11 @@ public record Fish(
         return values == null || values.isEmpty()
                 ? Collections.unmodifiableSet(EnumSet.noneOf(type))
                 : Collections.unmodifiableSet(EnumSet.copyOf(values));
+    }
+
+    /** Whether this entry is an object rather than a fish, so it has no length. */
+    public boolean isCatchMarker() {
+        return rarity != null && rarity.suppressesSize();
     }
 
     /** Whether this fish can be eaten at all, which is what an on_eat block declares. */

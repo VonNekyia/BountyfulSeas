@@ -33,4 +33,13 @@ public interface WaterConditions {
 
     /** What the world is doing right now, such as rain and time of day. */
     Set<Condition> conditions();
+
+    /**
+     * Whether a swarm of this fish is here right now.
+     *
+     * <p>Asked per fish rather than exposed as a trait, because a swarm is about
+     * one fish being in one place at one time - it is not a property of the water
+     * that other fish could match against.
+     */
+    boolean hasSwarmOf(String fishId);
 }
