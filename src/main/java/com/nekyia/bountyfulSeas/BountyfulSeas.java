@@ -465,6 +465,14 @@ public final class BountyfulSeas extends JavaPlugin {
             getLogger().log(Level.WARNING, "Fish item blueprints skipped: {0}", result.note());
             return;
         }
+        if (!result.repaired().isEmpty()) {
+            // A shared model data shows two items with one model, so say what moved.
+            getLogger().log(Level.WARNING,
+                    "Reassigned {0} clashing custom model data value(s) in {1}: {2}",
+                    new Object[]{result.repaired().size(), NexoBlueprintWriter.TARGET,
+                            String.join(", ", result.repaired())});
+        }
+
         if (result.created().isEmpty()) {
             return;
         }

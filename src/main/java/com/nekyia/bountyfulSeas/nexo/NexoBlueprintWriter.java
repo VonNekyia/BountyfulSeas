@@ -109,8 +109,14 @@ public final class NexoBlueprintWriter {
         Set<Integer> takenModelData = new HashSet<>();
         scanExisting(itemsFolder, target, takenIds, takenModelData);
 
+        // Our own entries claim their numbers one at a time, so a number that is
+        // missing, repeated, or already somebody else's is moved before anything
+        // new is handed one. Regenerating the file would also guarantee that, but
+        // at the cost of every texture path edited by hand.
+        List<String> repaired = new ArrayList<>();
+        boolean changed = repairModelData(blueprint, takenModelData, repaired);
+
         List<String> created = new ArrayList<>();
-        boolean changed = false;
         int modelData = MODEL_DATA_BASE;
 
         for (NexoItem item : items) {
@@ -159,7 +165,54 @@ public final class NexoBlueprintWriter {
             return BlueprintResult.skipped("could not write " + TARGET + ": " + exception.getMessage());
         }
 
-        return BlueprintResult.written(target, created);
+        return BlueprintResult.written(target, created, repaired);
+    }
+
+    /**
+     * Gives every entry of ours a custom model data nobody else is using.
+     *
+     * <p>Walked in file order, each entry keeping the number it has if that number
+     * is still free. The first entry to claim a number keeps it, so textures drawn
+     * against it stay correct; a later entry holding the same number is the one
+     * that moves.
+     *
+     * <p>This is what makes regenerating the whole file unnecessary. The guarantee
+     * is the same - no two entries can share a number - but the texture, material
+     * and model somebody set by hand are left where they are.
+     *
+     * @param taken    numbers already spoken for elsewhere; claimed numbers are added
+     * @param repaired receives {@code id -> number} for every entry that had to move
+     */
+    private static boolean repairModelData(YamlConfiguration blueprint, Set<Integer> taken,
+                                           List<String> repaired) {
+        boolean changed = false;
+        int next = MODEL_DATA_BASE;
+
+        for (String id : blueprint.getKeys(false)) {
+            ConfigurationSection section = blueprint.getConfigurationSection(id);
+            if (section == null) {
+                continue;
+            }
+            ConfigurationSection pack = section.getConfigurationSection("Pack");
+            if (pack == null) {
+                continue;
+            }
+
+            // add() answers false when the number is already spoken for, which is
+            // exactly the duplicate we are looking for.
+            if (pack.get("custom_model_data") instanceof Number current
+                    && taken.add(current.intValue())) {
+                continue;
+            }
+
+            while (!taken.add(next)) {
+                next++;
+            }
+            pack.set("custom_model_data", next);
+            repaired.add(id + " -> " + next);
+            changed = true;
+        }
+        return changed;
     }
 
     /**
@@ -239,16 +292,16 @@ public final class NexoBlueprintWriter {
      * Collects every item id and every custom model data value Nexo already knows,
      * so a generated stub never shadows a hand made item or steals its model data.
      *
-     * <p>The generated file counts for model data but not for ids. Its ids are ours
-     * to rewrite, so treating them as taken would stop us updating our own entries -
-     * but its model data is every bit as spoken for as anybody else's, and skipping
-     * it made allocation start from the base again on every run and hand a new entry
-     * a number one of our own already had.
+     * <p>The generated file is left out entirely: its ids are ours to rewrite, and
+     * its numbers are claimed one at a time by {@link #repairModelData} so that a
+     * duplicate among them can be told apart from a number legitimately held.
      */
     private static void scanExisting(Path itemsFolder, Path target, Set<String> ids, Set<Integer> modelData) {
         try (Stream<Path> paths = Files.walk(itemsFolder)) {
             for (Path file : paths.filter(Files::isRegularFile).filter(NexoBlueprintWriter::isYaml).toList()) {
-                boolean ours = file.equals(target);
+                if (file.equals(target)) {
+                    continue;
+                }
                 YamlConfiguration yaml = new YamlConfiguration();
                 try {
                     yaml.load(file.toFile());
@@ -257,9 +310,7 @@ public final class NexoBlueprintWriter {
                     continue;
                 }
                 for (String id : yaml.getKeys(false)) {
-                    if (!ours) {
-                        ids.add(id);
-                    }
+                    ids.add(id);
                     ConfigurationSection section = yaml.getConfigurationSection(id);
                     if (section == null) {
                         continue;
