@@ -1,14 +1,14 @@
 package com.nekyia.bountyfulSeas;
 
+import io.papermc.paper.command.brigadier.BasicCommand;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
@@ -20,7 +20,7 @@ import java.util.function.Consumer;
  * is claiming a word half the server's plugins also want, and whoever loads first
  * wins it.
  */
-final class BountyfulSeasCommand implements CommandExecutor, TabCompleter {
+final class BountyfulSeasCommand implements BasicCommand {
 
     private static final String DEBUG = "debug";
     private static final String DEBUG_PERMISSION = "bountyfulseas.debug";
@@ -44,51 +44,50 @@ final class BountyfulSeasCommand implements CommandExecutor, TabCompleter {
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
-                             @NotNull String label, @NotNull String[] args) {
+    public void execute(@NotNull CommandSourceStack source, @NotNull String[] args) {
+        CommandSender sender = source.getSender();
         if (args.length == 0) {
             sender.sendMessage(usage());
-            return true;
+            return;
         }
 
         String sub = args[0].toLowerCase(Locale.ROOT);
 
         if (sub.equals(GUIDE)) {
             if (denied(sender, GUIDE_PERMISSION)) {
-                return true;
+                return;
             }
             if (!(sender instanceof Player player)) {
                 sender.sendMessage(Component.text("Only a player has a guide.", NamedTextColor.RED));
-                return true;
+                return;
             }
             guide.run(player, args.length > 1 ? args[1] : null);
-            return true;
+            return;
         }
 
         if (sub.equals(DEBUG)) {
             if (denied(sender, DEBUG_PERMISSION)) {
-                return true;
+                return;
             }
             if (!(sender instanceof Player player)) {
                 sender.sendMessage(Component.text("Only a player has a fishing line.", NamedTextColor.RED));
-                return true;
+                return;
             }
             debug.run(player);
-            return true;
+            return;
         }
 
         if (sub.equals(REGENERATE)) {
             if (denied(sender, REGENERATE_PERMISSION)) {
-                return true;
+                return;
             }
             // Runs the world scan off-thread and reports back when it lands.
             regenerate.accept(sender);
-            return true;
+            return;
         }
 
         sender.sendMessage(Component.text("Unknown subcommand: " + args[0], NamedTextColor.RED));
         sender.sendMessage(usage());
-        return true;
     }
 
     private static boolean denied(CommandSender sender, String permission) {
@@ -100,8 +99,8 @@ final class BountyfulSeasCommand implements CommandExecutor, TabCompleter {
     }
 
     @Override
-    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
-                                      @NotNull String label, @NotNull String[] args) {
+    public Collection<String> suggest(@NotNull CommandSourceStack source, @NotNull String[] args) {
+        CommandSender sender = source.getSender();
         if (args.length == 1) {
             String typed = args[0].toLowerCase(Locale.ROOT);
             return SUBCOMMANDS.stream()

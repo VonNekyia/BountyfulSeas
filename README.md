@@ -67,8 +67,8 @@ draw, so a tier nobody has written an entry for costs nothing.
 Two enchantments, two jobs, and neither touches the other's tiers.
 
 - **Luck of the Fish** (levels I to V) lifts `rare`, `epic` and `legendary`.
-  A custom enchantment, defined by the datapack written to
-  `plugins/BountyfulSeas/datapack` - copy it into `<world>/datapacks`.
+  The plugin's own enchantment, registered with the server at startup and
+  obtainable from an enchanting table like any other - no datapack to install.
 - **Luck of the Sea** lifts `treasure`, and only `treasure` - that is where the
   enchanted books are.
 - **Lure** is off by default, keeping its vanilla job of making fish bite sooner.
@@ -196,8 +196,15 @@ folder; override with `-PtestServerPluginFolder=<path>`.
 | `water` | nothing - reads `water_regions.bin` |
 | `nexo` | nothing - writes Nexo item YAML |
 | `pl3xmap` | nothing - draws map layers |
+| `enchantment` | nothing - defines and registers the plugin's enchantments |
 | `fishing` | `fish` - picks the catch |
 | root | all of them - plugin lifecycle and wiring |
 
 Each boundary is an interface owned by the consumer, so the modules that talk to
 outside systems never learn what a fish is.
+
+This is a Paper plugin (`paper-plugin.yml`), which is what makes the enchantment
+possible: registries are only open during bootstrap, a stage a Bukkit plugin
+never sees. The two costs that come with it are in the root package -
+`BountyfulSeasLibraries` fetches the runtime libraries a `libraries` block used
+to, and `/bs` is registered through the command lifecycle event.

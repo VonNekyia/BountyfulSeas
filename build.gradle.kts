@@ -92,11 +92,11 @@ tasks {
 
     processResources {
         val props = mapOf("version" to version)
-        filesMatching("plugin.yml") {
+        filesMatching("paper-plugin.yml") {
             expand(props)
         }
 
-        // Only expanded in plugin.yml above; a native binary must not be run
+        // Only expanded in paper-plugin.yml above; a native binary must not be run
         // through the token filter or it comes out corrupted.
         from(analyzerBinary) {
             into("bin")

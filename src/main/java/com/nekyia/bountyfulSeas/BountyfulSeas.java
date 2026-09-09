@@ -3,6 +3,7 @@ package com.nekyia.bountyfulSeas;
 import com.nekyia.bountyfulSeas.api.CachedStats;
 import com.nekyia.bountyfulSeas.api.StatsApi;
 import com.nekyia.bountyfulSeas.database.DatabaseSettings;
+import com.nekyia.bountyfulSeas.enchantment.FishingEnchantments;
 import com.nekyia.bountyfulSeas.database.HikariCatchStore;
 import com.nekyia.bountyfulSeas.fish.Fish;
 import com.nekyia.bountyfulSeas.fish.Modifier;
@@ -23,9 +24,9 @@ import com.nekyia.bountyfulSeas.water.WaterMap;
 import com.nekyia.bountyfulSeas.water.WaterMapGenerator;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
@@ -46,6 +47,8 @@ public final class BountyfulSeas extends JavaPlugin {
     private static final String NEXO_PLUGIN_FOLDER = "Nexo";
     private static final String WATER_MAP_FILE = "water_regions.bin";
     private static final String ROOT_COMMAND = "bs";
+    private static final String COMMAND_ALIAS = "bountyfulseas";
+    private static final String COMMAND_DESCRIPTION = "BountyfulSeas commands.";
     private static final String OVERLAY_LABEL = "Fishing Water";
 
     private FishLibrary fish = FishLibrary.empty();
@@ -76,19 +79,47 @@ public final class BountyfulSeas extends JavaPlugin {
                 new FishingListener(this::fish, this::waterMap, this::swarms,
                         this::settings, this::recordCatch), this);
 
-        PluginCommand root = getCommand(ROOT_COMMAND);
-        if (root != null) {
-            BountyfulSeasCommand executor = new BountyfulSeasCommand(
-                    new DebugCommand(this::fish, this::waterMap, this::swarms, this::settings),
-                    this::regenerateWaterMap,
-                    new GuideCommand(this, this::fish, this::stats));
-            root.setExecutor(executor);
-            root.setTabCompleter(executor);
-        }
+        registerCommand();
+        reportEnchantments();
         startSwarms();
         publishWaterOverlay();
         rescanOnStart();
         getLogger().log(Level.INFO, "Ready with {0} fish.", fish.size());
+    }
+
+    /**
+     * Says whether the plugin's enchantments made it into the registry.
+     *
+     * <p>Worth a line at startup because the failure is otherwise silent: a rod can
+     * still be enchanted with nothing, and the bonus simply never applies. If this
+     * warns, the bootstrapper did not run.
+     */
+    private void reportEnchantments() {
+        if (FishingEnchantments.LUCK_OF_THE_FISH.enchantment() == null) {
+            getLogger().log(Level.WARNING, "{0} is not registered, so its bonus will never apply.",
+                    FishingEnchantments.LUCK_OF_THE_FISH.key());
+            return;
+        }
+        getLogger().log(Level.INFO, "Enchantment {0} is registered.",
+                FishingEnchantments.LUCK_OF_THE_FISH.key());
+    }
+
+    /**
+     * Claims {@code /bs}.
+     *
+     * <p>Registered through the lifecycle event rather than declared in the plugin
+     * file: a Paper plugin has no commands block, and this is the same registration
+     * the old one turned into anyway.
+     */
+    private void registerCommand() {
+        BountyfulSeasCommand command = new BountyfulSeasCommand(
+                new DebugCommand(this::fish, this::waterMap, this::swarms, this::settings),
+                this::regenerateWaterMap,
+                new GuideCommand(this, this::fish, this::stats));
+
+        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event ->
+                event.registrar().register(ROOT_COMMAND, COMMAND_DESCRIPTION,
+                        List.of(COMMAND_ALIAS), command));
     }
 
     /**
@@ -380,7 +411,6 @@ public final class BountyfulSeas extends JavaPlugin {
     public void loadFish() {
         Path folder = getDataFolder().toPath().resolve(FISH_FOLDER);
         saveDefaultCategories();
-        saveEnchantmentDatapack();
 
         FishLoadResult result = FishLoader.load(folder);
         fish = result.library();
@@ -396,22 +426,6 @@ public final class BountyfulSeas extends JavaPlugin {
         getLogger().log(Level.INFO, "Loaded {0} fish.", fish.size());
     }
 
-    /**
-     * Lays the Luck of the Fish datapack in the plugin folder, ready to install.
-     *
-     * <p>Written here rather than straight into the world on purpose. A datapack is
-     * the world's business, and an enchantment definition this plugin has never
-     * been able to test against a running server is not something to drop into
-     * somebody's save unasked. Copy the folder into {@code <world>/datapacks} to
-     * turn it on.
-     *
-     * <p>Nothing here is required: without the enchantment the lookup simply finds
-     * nothing and the bonus is never applied.
-     */
-    private void saveEnchantmentDatapack() {
-        saveResource("datapack/pack.mcmeta", false);
-        saveResource("datapack/data/bountyfulseas/enchantment/luck_of_the_fish.json", false);
-    }
 
     /**
      * Writes any shipped category the server does not have yet.

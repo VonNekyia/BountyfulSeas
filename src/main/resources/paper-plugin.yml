@@ -1,0 +1,44 @@
+name: BountyfulSeas
+version: '${version}'
+
+main: com.nekyia.bountyfulSeas.BountyfulSeas
+api-version: '26.2'
+
+# Registers the plugin's own enchantments while the server's registries are still
+# open. Nothing else happens this early - see BountyfulSeasBootstrap.
+bootstrapper: com.nekyia.bountyfulSeas.BountyfulSeasBootstrap
+
+# Fetches HikariCP, MariaDB and Caffeine at startup instead of shading them in.
+loader: com.nekyia.bountyfulSeas.BountyfulSeasLibraries
+
+authors: [ gerryxn ]
+
+dependencies:
+  server:
+    # The fishing guide is a RoseGUI menu, so this one is genuinely required.
+    TerranovaLib:
+      load: BEFORE
+      required: true
+
+    # Fish item blueprints are written while Nexo is still loading, so Nexo has to
+    # come after us and reads them in its own item pass instead of needing a reload.
+    Nexo:
+      load: AFTER
+      required: false
+
+    # Ordering only: enabling after Pl3xMap means its worlds are registered before
+    # the water layer is drawn. Without Pl3xMap there is simply no overlay.
+    Pl3xMap:
+      load: BEFORE
+      required: false
+
+permissions:
+  bountyfulseas.debug:
+    description: Allows inspecting fishing chances at the bobber.
+    default: op
+  bountyfulseas.watermapregenerate:
+    description: Allows rescanning the world and rebuilding the water map.
+    default: op
+  bountyfulseas.guide:
+    description: Allows opening the fishing guide.
+    default: true

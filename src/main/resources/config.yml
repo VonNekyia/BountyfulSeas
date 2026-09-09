@@ -83,16 +83,11 @@ rarity-chances:
 # Both apply in full on a rod carrying both.
 enchantments:
   luck-of-the-fish:
-    # Raises rare, epic and legendary only. Not misc, not treasure - and not
-    # mythic, so that no enchantment can make the rarest catch ordinary.
-    # Levels I to V, so +50% of base at full.
+    # The plugin's own enchantment, registered at startup and obtainable from an
+    # enchanting table like any other. Raises rare, epic and legendary only. Not
+    # misc, not treasure - and not mythic, so that no enchantment can make the
+    # rarest catch ordinary. Levels I to V, so +50% of base at full.
     bonus-per-level: 10
-
-    # The enchantment's registry key. It is not a vanilla enchantment, so a
-    # datapack has to define it: one is written to plugins/BountyfulSeas/datapack,
-    # ready to be copied into <world>/datapacks. Until something defines this key
-    # the lookup finds nothing and the bonus is simply never applied.
-    key: "bountyfulseas:luck_of_the_fish"
 
   luck-of-the-sea:
     # Treasure, and only treasure - that is where the enchanted books are.

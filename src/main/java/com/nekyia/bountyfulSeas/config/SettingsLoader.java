@@ -55,9 +55,7 @@ public final class SettingsLoader {
         return new Settings.EnchantmentSettings(
                 percent(config, "enchantments.lure.bonus-per-level", 0, problems),
                 percent(config, "enchantments.luck-of-the-sea.bonus-per-level", 10, problems),
-                percent(config, "enchantments.luck-of-the-fish.bonus-per-level", 10, problems),
-                config.getString("enchantments.luck-of-the-fish.key",
-                        "bountyfulseas:luck_of_the_fish"));
+                percent(config, "enchantments.luck-of-the-fish.bonus-per-level", 10, problems));
     }
 
     private static double percent(FileConfiguration config, String path, double fallback,

@@ -72,16 +72,14 @@ public record Settings(
      * likely, not thirty points likelier - so the numbers stay sane whatever the
      * base chances are set to.
      *
-     * @param lurePerLevel percent added per Lure level, to fish tiers above common
+     * @param lurePerLevel percent added per Lure level, to the same tiers as Luck of the Fish
      * @param luckPerLevel percent added per Luck of the Sea level, to treasure
-     * @param fishPerLevel percent added per Luck of the Fish level, to fish tiers
-     * @param fishKey      the registry key of the Luck of the Fish enchantment
+     * @param fishPerLevel percent added per Luck of the Fish level, to rare, epic and legendary
      */
     public record EnchantmentSettings(
             double lurePerLevel,
             double luckPerLevel,
-            double fishPerLevel,
-            String fishKey
+            double fishPerLevel
     ) {
 
         /** The multiplier a rod with this much Lure applies. */

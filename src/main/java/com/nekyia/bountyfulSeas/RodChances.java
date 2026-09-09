@@ -1,11 +1,9 @@
 package com.nekyia.bountyfulSeas;
 
 import com.nekyia.bountyfulSeas.config.Settings;
+import com.nekyia.bountyfulSeas.enchantment.FishingEnchantments;
 import com.nekyia.bountyfulSeas.fish.Rarity;
-import io.papermc.paper.registry.RegistryAccess;
-import io.papermc.paper.registry.RegistryKey;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -54,7 +52,7 @@ final class RodChances {
         // Lure is off by default and does the same job as Luck of the Fish when
         // switched on, so the two multiply into one figure for the fish tiers.
         double fish = bonuses.lureMultiplier(levelOf(rod, Enchantment.LURE))
-                * bonuses.fishMultiplier(levelOf(rod, custom(bonuses.fishKey())));
+                * bonuses.fishMultiplier(FishingEnchantments.LUCK_OF_THE_FISH.levelOn(rod));
         double sea = bonuses.luckMultiplier(levelOf(rod, Enchantment.LUCK_OF_THE_SEA));
 
         Map<Rarity, Double> weights = new EnumMap<>(Rarity.class);
@@ -88,26 +86,6 @@ final class RodChances {
         return null;
     }
 
-    /**
-     * An enchantment the server defines rather than Minecraft.
-     *
-     * <p>Looked up by key every time rather than cached, because a datapack reload
-     * replaces the registry entry and a held reference would go stale. Returns null
-     * when nothing has defined it, which simply means nobody can have it yet.
-     */
-    private static Enchantment custom(String key) {
-        NamespacedKey parsed = NamespacedKey.fromString(key);
-        if (parsed == null) {
-            return null;
-        }
-        try {
-            return RegistryAccess.registryAccess()
-                    .getRegistry(RegistryKey.ENCHANTMENT)
-                    .get(parsed);
-        } catch (RuntimeException unavailable) {
-            return null;
-        }
-    }
 
     /** The rod being fished with, checking both hands, or null when there is none. */
     private static ItemStack rodOf(Player player) {
