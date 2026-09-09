@@ -38,12 +38,53 @@ Five questions, in order. Any of them can end with vanilla keeping its fish.
 3. **Which tier?** A rarity is drawn from the configured chances, counting only
    tiers actually present here.
 4. **Which entry?** Within that tier, `spawn_weight` decides.
-5. **How big?** Length is rolled between the entry's bounds.
+5. **How big?** Length is rolled from the fish's maximum along the size curve.
 
 The tier is drawn **before** the entry on purpose. Rolling in one pass would make
 a legendary likelier in water that happens to hold three of them, which is the
 opposite of what a rarity is for. Water holding one legendary and water holding
 ten give it the same odds.
+
+### How big it is
+
+A fish definition gives one number, `max_length`. Everything below it comes from
+one curve, the shape fisheries science uses for the length composition of a real
+stock ([Beverton and Holt](https://www.fao.org/4/T0535E/T0535E03.htm)): fish die
+off steadily while their growth slows towards a ceiling, so most of what is
+swimming is middling and only a few live long enough to get big.
+
+```
+P(longer than l) = ((max - l) / (max - smallest)) ^ shape
+```
+
+`shape` is Z/K, the mortality-to-growth ratio - how many fish die for every bit
+of growing the survivors do. Real stocks sit around 1.5 to 3. The same model,
+read backwards, is the classic Beverton-Holt mean-length estimator
+`Z/K = (L∞ - L̄) / (L̄ - Lc)`, which is a good check that the curve is the real
+one rather than something that merely looks skewed.
+
+Two things are pinned rather than left to the curve:
+
+- **`max_length` is the record, not the ceiling.** It comes up once in a million
+  catches. The values shipped sit just above the largest specimen each species is
+  known to reach, so a record fish is a hair beyond anything ever landed.
+- **Nothing rolls below `smallest`**, a fraction of the maximum. A hook does not
+  bring up fry; that is gear selectivity, the same reason the formula starts
+  there rather than at zero. There is no `min_length` in a fish file.
+
+With the defaults, for a fish that reaches 100 cm:
+
+| | length |
+|---|---|
+| shortest possible | 25.00 cm |
+| half of all catches under | 40.63 cm |
+| 4 in 100 reach | 75 cm |
+| 3 in 1000 reach | 90 cm |
+| 1 in 1 000 000 reaches | 100 cm |
+
+Lengths are measured to two decimals, so a catch reads `40.63 cm`. Only the
+longest is remembered - nobody sets out to land the smallest herring anyone has
+ever seen.
 
 ### Rarity tiers
 
@@ -108,8 +149,7 @@ herring:
   lore:
     - "Travels in silver walls that turn as one."
 
-  min_length: 15
-  max_length: 32
+  max_length: 46
 
   water_type: [ocean]
   vegetation: [cold, temperate]

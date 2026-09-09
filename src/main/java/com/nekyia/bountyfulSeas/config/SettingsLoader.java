@@ -20,6 +20,8 @@ import java.util.Map;
 public final class SettingsLoader {
 
     private static final int MAX_SWARMS = 500;
+    private static final double MIN_SIZE_SHAPE = 0.1;
+    private static final double MAX_SIZE_SMALLEST = 0.95;
     private static final long MIN_ROTATION_MINUTES = 1;
 
     /** Must stay in step with the {@code rarity-chances} block in config.yml. */
@@ -47,7 +49,38 @@ public final class SettingsLoader {
                 database(config),
                 swarms(config, problems),
                 rarityChances(config, problems),
-                enchantments(config, problems));
+                enchantments(config, problems),
+                sizes(config, problems));
+    }
+
+    /**
+     * How lengths are spread.
+     *
+     * <p>Clamped rather than rejected, like everything else here, but the bounds
+     * matter more than usual: a shape at or below zero and a smallest at or above
+     * one both make the curve meaningless rather than merely odd.
+     */
+    private static Settings.SizeSettings sizes(FileConfiguration config, List<String> problems) {
+        double shape = config.getDouble("sizes.shape", 3);
+        if (shape < MIN_SIZE_SHAPE) {
+            problems.add("sizes.shape was " + shape + ", which is below " + MIN_SIZE_SHAPE
+                    + "; using " + MIN_SIZE_SHAPE);
+            shape = MIN_SIZE_SHAPE;
+        }
+
+        double smallest = config.getDouble("sizes.smallest", 0.25);
+        if (smallest < 0 || smallest >= MAX_SIZE_SMALLEST) {
+            problems.add("sizes.smallest was " + smallest + ", which has to be between 0 and "
+                    + MAX_SIZE_SMALLEST + "; using 0.25");
+            smallest = 0.25;
+        }
+
+        long odds = config.getLong("sizes.record-odds", 1_000_000);
+        if (odds < 1) {
+            problems.add("sizes.record-odds was " + odds + ", which cannot be below 1; using 1");
+            odds = 1;
+        }
+        return new Settings.SizeSettings(shape, smallest, odds);
     }
 
     private static Settings.EnchantmentSettings enchantments(FileConfiguration config,

@@ -99,7 +99,7 @@ final class GuideText {
 
 
     static String cm(double value) {
-        return String.format(Locale.ROOT, "%.1f cm", value);
+        return String.format(Locale.ROOT, "%.2f cm", value);
     }
 
     /** deep_sea becomes Deep Sea. */

@@ -7,8 +7,7 @@ herring:
   fish_name: "<gray>Hering</gray>"
   fish_item: "nexo:herring"
 
-  min_length: 15
-  max_length: 32
+  max_length: 46
 
   water_type: [ocean]
   vegetation: [cold, temperate]
@@ -27,8 +26,7 @@ silver_shoal:
   lore:
     - "Here today. Somewhere else by the next tide."
 
-  min_length: 10
-  max_length: 26
+  max_length: 31
 
   water_type: [ocean]
   modifier: [swarm]

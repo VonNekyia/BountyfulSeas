@@ -1,7 +1,7 @@
 # Junk - what comes up when it is not a fish.
 #
 # The misc and treasure tiers mark an entry as not-a-fish. They carry no length,
-# so no min_length or max_length.
+# so no max_length.
 
 soggy_boot:
   fish_name: "<dark_gray>Durchweichter Stiefel</dark_gray>"

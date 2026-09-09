@@ -51,6 +51,38 @@ swarms:
   # How long a swarm stays put, in minutes.
   rotate-minutes: 60
 
+# How long a caught fish turns out to be.
+#
+# A fish definition gives one number, max_length - the most that fish ever
+# reaches. Everything below it is rolled from this curve, which is the shape
+# fisheries science uses for a real stock (Beverton and Holt): fish die off
+# steadily while their growth slows towards a ceiling, so most of what is
+# swimming is middling and only a few live long enough to get big.
+#
+#   P(longer than l) = ((max - l) / (max - smallest)) ^ shape
+#
+# With the defaults below, for a fish that reaches 100 cm:
+#
+#   half of all catches are under 41 cm
+#   4 in 100 are 75 cm or more
+#   3 in 1000 are 90 cm or more
+#   1 in 1000000 is the full 100 cm
+sizes:
+  # Z/K, the mortality-to-growth ratio: how many fish die for every bit of
+  # growing the survivors do. Real stocks sit around 1.5 to 3. Raise it and big
+  # ones get rarer; lower it and the catch evens out.
+  shape: 3
+
+  # The shortest a catch can be, as a fraction of that fish's maximum. This is
+  # what min_length used to be, except it is one rule for every fish: a hook does
+  # not bring up fry, which is the same reason the formula starts here.
+  smallest: 0.25
+
+  # One catch in this many comes up at exactly the maximum length. That is the
+  # record - the number in the fish file is not where the fish stop growing, it
+  # is the length hardly anyone ever sees.
+  record-odds: 1000000
+
 # How likely each tier is when something bites. The tier is drawn first, then an
 # entry from within it by spawn_weight - so the odds of a legendary do not change
 # just because a spot happens to hold three of them.

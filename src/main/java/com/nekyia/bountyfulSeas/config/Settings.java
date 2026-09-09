@@ -17,6 +17,7 @@ import java.util.Map;
  * @param database      how to reach the statistics database
  * @param swarms        how swarming fish are distributed
  * @param rarityChances relative chance of each tier being rolled, by tier name
+ * @param sizes         how rolled lengths are spread between nothing and the maximum
  */
 public record Settings(
         String analyzer,
@@ -25,7 +26,8 @@ public record Settings(
         DatabaseSettings database,
         SwarmSettings swarms,
         Map<String, Double> rarityChances,
-        EnchantmentSettings enchantments
+        EnchantmentSettings enchantments,
+        SizeSettings sizes
 ) {
 
     public Settings {
@@ -96,5 +98,18 @@ public record Settings(
         public double fishMultiplier(int level) {
             return 1 + fishPerLevel / 100.0 * Math.max(0, level);
         }
+    }
+
+    /**
+     * The shape of the length roll.
+     *
+     * <p>Held as plain numbers rather than as the curve itself: config knows what
+     * was configured, and the fishing module owns what it means.
+     *
+     * @param shape     Z/K, the mortality-to-growth ratio; higher means big ones are rarer
+     * @param smallest  the shortest catch, as a fraction of the fish's maximum
+     * @param oddsOfMax one catch in this many comes up at the maximum length
+     */
+    public record SizeSettings(double shape, double smallest, long oddsOfMax) {
     }
 }

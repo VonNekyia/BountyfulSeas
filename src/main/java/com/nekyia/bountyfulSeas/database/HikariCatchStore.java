@@ -33,12 +33,11 @@ public final class HikariCatchStore implements CatchStore, AutoCloseable {
 
     private static final String UPSERT = """
             INSERT INTO bs_player_fish
-                (player, fish_id, catches, longest, shortest)
-            VALUES (?, ?, 1, ?, ?)
+                (player, fish_id, catches, longest)
+            VALUES (?, ?, 1, ?)
             ON DUPLICATE KEY UPDATE
-                catches  = catches + 1,
-                longest  = GREATEST(longest, ?),
-                shortest = LEAST(shortest, ?)
+                catches = catches + 1,
+                longest = GREATEST(longest, ?)
             """;
 
     /**
@@ -56,20 +55,19 @@ public final class HikariCatchStore implements CatchStore, AutoCloseable {
             """;
 
     private static final String BY_PLAYER_AND_FISH = """
-            SELECT fish_id, catches, longest, shortest
+            SELECT fish_id, catches, longest
             FROM bs_player_fish WHERE player = ? AND fish_id = ?
             """;
 
     private static final String BY_PLAYER = """
-            SELECT fish_id, catches, longest, shortest
+            SELECT fish_id, catches, longest
             FROM bs_player_fish WHERE player = ?
             """;
 
     private static final String SERVER_TOTALS = """
             SELECT fish_id,
                    SUM(catches) AS catches,
-                   MAX(longest) AS longest,
-                   MIN(shortest) AS shortest
+                   MAX(longest) AS longest
             FROM bs_player_fish GROUP BY fish_id
             """;
 
@@ -89,7 +87,6 @@ public final class HikariCatchStore implements CatchStore, AutoCloseable {
                 fish_id  VARCHAR(64)  NOT NULL,
                 catches  BIGINT       NOT NULL DEFAULT 0,
                 longest  DOUBLE       NOT NULL DEFAULT 0,
-                shortest DOUBLE       NOT NULL DEFAULT 0,
                 PRIMARY KEY (player, fish_id),
                 KEY idx_fish (fish_id)
             )
@@ -163,11 +160,9 @@ public final class HikariCatchStore implements CatchStore, AutoCloseable {
             try (PreparedStatement statement = connection.prepareStatement(UPSERT)) {
                 statement.setString(1, player.toString());
                 statement.setString(2, fishId);
-                // Inserted values, then the same two again for the update branch.
+                // The inserted length, then the same one again for the update branch.
                 statement.setDouble(3, length);
                 statement.setDouble(4, length);
-                statement.setDouble(5, length);
-                statement.setDouble(6, length);
                 statement.executeUpdate();
             }
 
@@ -265,8 +260,7 @@ public final class HikariCatchStore implements CatchStore, AutoCloseable {
         return new FishStats(
                 rows.getString("fish_id"),
                 rows.getLong("catches"),
-                rows.getDouble("longest"),
-                rows.getDouble("shortest"));
+                rows.getDouble("longest"));
     }
 
     @Override

@@ -32,7 +32,6 @@ public final class FishLoader {
 
     private static final String KEY_NAME = "fish_name";
     private static final String KEY_ITEM = "fish_item";
-    private static final String KEY_MIN_LENGTH = "min_length";
     private static final String KEY_MAX_LENGTH = "max_length";
     private static final String KEY_WATER_TYPE = "water_type";
     private static final String KEY_TERRAIN = "terrain";
@@ -54,7 +53,7 @@ public final class FishLoader {
 
     private static final Set<String> KNOWN_KEYS = Set.of(
             KEY_NAME, KEY_ITEM,
-            KEY_MIN_LENGTH, KEY_MAX_LENGTH,
+            KEY_MAX_LENGTH,
             KEY_WATER_TYPE, KEY_TERRAIN, KEY_VEGETATION, KEY_DEPTH,
             KEY_MODIFIER, KEY_CONDITION,
             KEY_BAIT_LOCKED, KEY_SPAWN_WEIGHT, KEY_RARITY, KEY_ON_EAT, KEY_LORE);
@@ -173,10 +172,8 @@ public final class FishLoader {
 
         List<String> lore = textList(file, id, section, problems);
 
-        double minLength = number(file, id, section, KEY_MIN_LENGTH, problems);
         double maxLength = number(file, id, section, KEY_MAX_LENGTH, problems);
 
-        checkRange(file, id, KEY_MIN_LENGTH, minLength, KEY_MAX_LENGTH, maxLength, problems);
 
         Set<WaterType> waterTypes = enums(WaterType.class, file, id, section, KEY_WATER_TYPE, problems);
         Set<Terrain> terrains = enums(Terrain.class, file, id, section, KEY_TERRAIN, problems);
@@ -188,10 +185,10 @@ public final class FishLoader {
         boolean baitLocked = flag(file, id, section, problems);
         int spawnWeight = spawnWeight(file, id, section, problems);
         Rarity rarity = rarity(file, id, section, problems);
-        if (rarity != null && rarity.suppressesSize() && (minLength > 0 || maxLength > 0)) {
+        if (rarity != null && rarity.suppressesSize() && maxLength > 0) {
             problems.add(FishProblem.fish(file, id, "is " + rarity.configName()
                     + ", which is not a fish and carries no length, so "
-                    + KEY_MIN_LENGTH + " and " + KEY_MAX_LENGTH + " must be left out"));
+                    + KEY_MAX_LENGTH + " must be left out"));
         }
         OnEat onEat = onEat(file, id, section, problems);
 
@@ -200,7 +197,7 @@ public final class FishLoader {
         }
 
         return new Fish(id, category, name, item, lore,
-                minLength, maxLength,
+                maxLength,
                 waterTypes, terrains, vegetations, depths, modifiers, conditions,
                 baitLocked, spawnWeight, rarity, onEat);
     }
@@ -379,13 +376,6 @@ public final class FishLoader {
         return result;
     }
 
-    private static void checkRange(String file, String id, String minKey, double min,
-                                   String maxKey, double max, List<FishProblem> problems) {
-        if (min > max) {
-            problems.add(FishProblem.fish(file, id,
-                    minKey + " (" + min + ") must not be greater than " + maxKey + " (" + max + ")"));
-        }
-    }
 
     private static boolean flag(String file, String id, ConfigurationSection section, List<FishProblem> problems) {
         Object raw = section.get(KEY_BAIT_LOCKED);

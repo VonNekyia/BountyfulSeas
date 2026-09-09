@@ -3,6 +3,7 @@ package com.nekyia.bountyfulSeas;
 import com.nekyia.bountyfulSeas.fish.Fish;
 import com.nekyia.bountyfulSeas.fish.FishLibrary;
 import com.nekyia.bountyfulSeas.fishing.Catch;
+import com.nekyia.bountyfulSeas.fishing.LengthCurve;
 import com.nekyia.bountyfulSeas.fishing.FishSelector;
 import com.nekyia.bountyfulSeas.nexo.NexoItemFactory;
 import com.nekyia.bountyfulSeas.config.Settings;
@@ -43,6 +44,17 @@ final class FishingListener implements Listener {
         this.swarms = swarms;
         this.settings = settings;
         this.recorder = recorder;
+    }
+
+    /**
+     * The configured length curve, rebuilt each catch so a config reload is felt.
+     *
+     * <p>Built here rather than held in the settings: config knows the numbers,
+     * the fishing module knows what they mean, and this is the seam between them.
+     */
+    private LengthCurve lengthCurve() {
+        Settings.SizeSettings sizes = settings.get().sizes();
+        return new LengthCurve(sizes.shape(), sizes.smallest(), sizes.oddsOfMax());
     }
 
     /** Where a landed catch is sent to be counted. */
@@ -89,7 +101,7 @@ final class FishingListener implements Listener {
             return;
         }
 
-        Catch landed = Catch.roll(picked, ThreadLocalRandom.current());
+        Catch landed = Catch.roll(picked, lengthCurve(), ThreadLocalRandom.current());
         caught.setItemStack(stack);
         event.getPlayer().sendMessage(CatchMessage.of(landed, stack));
 
