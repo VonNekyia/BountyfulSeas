@@ -1,5 +1,6 @@
 package com.nekyia.bountyfulSeas.database;
 
+import com.nekyia.bountyfulSeas.stats.CatchOutcome;
 import com.nekyia.bountyfulSeas.stats.CatchStore;
 import com.nekyia.bountyfulSeas.stats.FishStats;
 import com.nekyia.bountyfulSeas.stats.PlayerTotal;
@@ -38,6 +39,20 @@ public final class HikariCatchStore implements CatchStore, AutoCloseable {
                 catches  = catches + 1,
                 longest  = GREATEST(longest, ?),
                 shortest = LEAST(shortest, ?)
+            """;
+
+    /**
+     * What one fish's totals looked like before this catch, in one pass.
+     *
+     * <p>Both the player's own best and the server's come off the same row set -
+     * the fish index already has those rows in hand, so asking for the two figures
+     * separately would read them twice for nothing.
+     */
+    private static final String BESTS_BEFORE = """
+            SELECT COALESCE(MAX(longest), 0)                              AS server_longest,
+                   COALESCE(MAX(CASE WHEN player = ? THEN catches END), 0) AS own_catches,
+                   COALESCE(MAX(CASE WHEN player = ? THEN longest END), 0) AS own_longest
+            FROM bs_player_fish WHERE fish_id = ?
             """;
 
     private static final String BY_PLAYER_AND_FISH = """
@@ -124,26 +139,42 @@ public final class HikariCatchStore implements CatchStore, AutoCloseable {
     }
 
     @Override
-    public long record(UUID player, String fishId, double length) {
-        try (Connection connection = dataSource.getConnection();
-             PreparedStatement statement = connection.prepareStatement(UPSERT)) {
-            statement.setString(1, player.toString());
-            statement.setString(2, fishId);
-            // Inserted values, then the same two again for the update branch.
-            statement.setDouble(3, length);
-            statement.setDouble(4, length);
-            statement.setDouble(5, length);
-            statement.setDouble(6, length);
-            statement.executeUpdate();
+    public CatchOutcome record(UUID player, String fishId, double length) {
+        try (Connection connection = dataSource.getConnection()) {
+            // Read before writing: afterwards the old bests are gone, overwritten
+            // by this very catch, and there would be nothing left to compare with.
+            long ownCatches = 0;
+            double ownBest = 0;
+            double serverBest = 0;
 
-            // Same connection, so the count read back is the one just written.
-            try (PreparedStatement count = connection.prepareStatement(BY_PLAYER_AND_FISH)) {
-                count.setString(1, player.toString());
-                count.setString(2, fishId);
-                try (ResultSet rows = count.executeQuery()) {
-                    return rows.next() ? rows.getLong("catches") : 0;
+            try (PreparedStatement bests = connection.prepareStatement(BESTS_BEFORE)) {
+                bests.setString(1, player.toString());
+                bests.setString(2, player.toString());
+                bests.setString(3, fishId);
+                try (ResultSet rows = bests.executeQuery()) {
+                    if (rows.next()) {
+                        serverBest = rows.getDouble("server_longest");
+                        ownCatches = rows.getLong("own_catches");
+                        ownBest = rows.getDouble("own_longest");
+                    }
                 }
             }
+
+            try (PreparedStatement statement = connection.prepareStatement(UPSERT)) {
+                statement.setString(1, player.toString());
+                statement.setString(2, fishId);
+                // Inserted values, then the same two again for the update branch.
+                statement.setDouble(3, length);
+                statement.setDouble(4, length);
+                statement.setDouble(5, length);
+                statement.setDouble(6, length);
+                statement.executeUpdate();
+            }
+
+            // A first catch beats nothing, so a best of zero stays zero.
+            return new CatchOutcome(ownCatches + 1,
+                    ownBest > 0 && length > ownBest ? ownBest : 0,
+                    serverBest > 0 && length > serverBest ? serverBest : 0);
         } catch (SQLException failure) {
             throw new IllegalStateException("could not record a catch of " + fishId, failure);
         }

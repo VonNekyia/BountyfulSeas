@@ -19,10 +19,10 @@ public interface CatchStore {
     /**
      * Adds one catch to a player's totals and to the server's.
      *
-     * @return how many of that fish the player has now, so a milestone crossing
-     *         can be spotted without asking a second time
+     * @return what that catch came to - the running count, so a milestone crossing
+     *         can be spotted without asking a second time, and the bests it beat
      */
-    long record(UUID player, String fishId, double length);
+    CatchOutcome record(UUID player, String fishId, double length);
 
     /** One player's totals for one fish, never null. */
     FishStats forPlayer(UUID player, String fishId);

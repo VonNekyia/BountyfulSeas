@@ -19,8 +19,8 @@ public final class CatchStores {
     public static CatchStore none() {
         return new CatchStore() {
             @Override
-            public long record(UUID player, String fishId, double length) {
-                return 0;
+            public CatchOutcome record(UUID player, String fishId, double length) {
+                return CatchOutcome.nothing();
             }
 
             @Override

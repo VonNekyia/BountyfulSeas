@@ -13,6 +13,7 @@ import com.nekyia.bountyfulSeas.fish.FishLoader;
 import com.nekyia.bountyfulSeas.fish.FishProblem;
 import com.nekyia.bountyfulSeas.nexo.BlueprintResult;
 import com.nekyia.bountyfulSeas.nexo.NexoBlueprintWriter;
+import com.nekyia.bountyfulSeas.stats.CatchOutcome;
 import com.nekyia.bountyfulSeas.stats.CatchStore;
 import com.nekyia.bountyfulSeas.config.Settings;
 import com.nekyia.bountyfulSeas.config.SettingsLoader;
@@ -283,9 +284,9 @@ public final class BountyfulSeas extends JavaPlugin {
      */
     private void recordCatch(UUID player, String fishId, double length) {
         getServer().getScheduler().runTaskAsynchronously(this, () -> {
-            long catches;
+            CatchOutcome outcome;
             try {
-                catches = catchStore.record(player, fishId, length);
+                outcome = catchStore.record(player, fishId, length);
                 stats.invalidate(player);
             } catch (RuntimeException failure) {
                 getLogger().log(Level.WARNING, "Could not record a catch of {0}: {1}",
@@ -293,8 +294,9 @@ public final class BountyfulSeas extends JavaPlugin {
                 return;
             }
 
-            Milestone earned = Milestone.reachedExactly(catches);
-            if (earned == null) {
+            Milestone earned = Milestone.reachedExactly(outcome.catches());
+            boolean record = outcome.ownRecord() || outcome.serverRecord();
+            if (earned == null && !record) {
                 return;
             }
 
@@ -303,8 +305,14 @@ public final class BountyfulSeas extends JavaPlugin {
             getServer().getScheduler().runTask(this, () -> {
                 Player online = getServer().getPlayer(player);
                 Fish caught = fish.get(fishId);
-                if (online != null && caught != null) {
-                    online.sendMessage(CatchMessage.milestone(caught, earned, catches));
+                if (online == null || caught == null) {
+                    return;
+                }
+                if (record) {
+                    online.sendMessage(CatchMessage.record(caught, length, outcome));
+                }
+                if (earned != null) {
+                    online.sendMessage(CatchMessage.milestone(caught, earned, outcome.catches()));
                 }
             });
         });
