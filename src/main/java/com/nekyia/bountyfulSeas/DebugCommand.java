@@ -51,6 +51,9 @@ final class DebugCommand {
     /** Below this, odds read better as "1 in n" than as a percentage. */
     private static final double RARE_PERCENT = 0.1;
 
+    /** Above this, a percentage needs more decimals or it reads as everything. */
+    private static final double NEARLY_ALL = 99.99;
+
     private final Supplier<FishLibrary> fish;
     private final Supplier<WaterMap> waterMap;
     private final Supplier<Swarms> swarms;
@@ -557,18 +560,25 @@ final class DebugCommand {
         player.sendMessage(heading(picked.id() + " at " + cm(length)));
         player.sendMessage(detail("of the maximum", Math.round(100 * length / max) + "%"));
         player.sendMessage(detail("this good or better", odds(chance)));
-        player.sendMessage(detail("beats", trim(100 * (1 - chance)) + "% of catches"));
+        player.sendMessage(detail("beats", percent(1 - chance) + " of catches"));
 
         player.sendMessage(heading("What the curve gives"));
         for (Settings.SizeSettings.Bracket bracket : settings.get().sizes().brackets()) {
             double at = curve.lengthBeatenBy(max, bracket.chance());
             player.sendMessage(detail(bracket.label(), cm(at)
+                    + "   " + percent(bracket.chance())
                     + (length >= at ? "   reached" : "")));
         }
-        player.sendMessage(detail("shortest there is", cm(curve.shortest(max))));
+        player.sendMessage(detail("shortest there is", cm(curve.shortest(max)) + "   100%"));
     }
 
-    /** A chance as odds, because "0.0001%" says less than "1 in a million". */
+    /**
+     * A chance in both forms it gets read in.
+     *
+     * <p>A percentage is what a number in the config looks like; odds are what a
+     * catch feels like. At these magnitudes neither says enough on its own -
+     * "0.0001%" and "1 in a million" are the same fact and only one of them lands.
+     */
     private static String odds(double chance) {
         if (chance <= 0) {
             return "never";
@@ -576,10 +586,38 @@ final class DebugCommand {
         if (chance >= 1) {
             return "every catch";
         }
-        if (100 * chance >= RARE_PERCENT) {
-            return trim(100 * chance) + "% of catches";
+        String reads = percent(chance);
+        return 100 * chance >= RARE_PERCENT
+                ? reads
+                : reads + "   1 in " + String.format(Locale.ROOT, "%,d", Math.round(1 / chance));
+    }
+
+    /**
+     * A chance as a percentage, with as many decimals as it takes to say anything.
+     *
+     * <p>Two decimals would round a record to 0.00%, which is worse than useless.
+     */
+    private static String percent(double chance) {
+        double reached = 100 * chance;
+
+        // Two decimals at either end would lie in both directions: a record would
+        // round to 0.00%, and what a record beats would round to a flat 100%.
+        String text = reached >= NEARLY_ALL && chance < 1
+                ? String.format(Locale.ROOT, "%.6f", reached)
+                : reached >= 1 ? String.format(Locale.ROOT, "%.2f", reached)
+                : reached >= 0.01 ? String.format(Locale.ROOT, "%.3f", reached)
+                : String.format(Locale.ROOT, "%.6f", reached);
+
+        // Trim the padding the format added: 0.000100 is 0.0001, and 1.00 is 1.
+        if (text.indexOf('.') >= 0) {
+            while (text.endsWith("0")) {
+                text = text.substring(0, text.length() - 1);
+            }
+            if (text.endsWith(".")) {
+                text = text.substring(0, text.length() - 1);
+            }
         }
-        return "1 in " + String.format(Locale.ROOT, "%,d", Math.round(1 / chance));
+        return text + "%";
     }
 
     // ---------------------------------------------------------------- shared
