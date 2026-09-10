@@ -122,7 +122,13 @@ With the defaults, for a fish that reaches 100 cm:
 | 3 in 1000 reach | 90 cm |
 | 1 in 1 000 000 reaches | 100 cm |
 
-Lengths are measured to two decimals, so a catch reads `40.63 cm`. Only the
+Lengths are measured to two decimals and **truncated**, not rounded to the
+nearest. Rounding let everything from half a hundredth below the maximum read as
+the maximum, which quietly widened the record - for a 22 cm fish the top step
+held 1.09 catches in a million rather than 1. Truncating makes the maximum mean
+it. The marks worth naming (`shortest`, `top 1%`, `a record`, ...) are a list of
+label and chance pairs under `sizes.brackets`, and `/bs debug lengthvalue` reads
+them from there. Only the
 longest is remembered - nobody sets out to land the smallest herring anyone has
 ever seen.
 
@@ -130,45 +136,79 @@ ever seen.
 
 | Tier | Default chance | Notes |
 |---|---|---|
-| `uncommon` | 75 | the buffer: enchantment bonuses come out of here |
-| `rare` | 15 | |
-| `misc` | 5 | junk, not a fish, no length |
-| `epic` | 4 | |
-| `legendary` | 0.5 | |
-| `treasure` | 0.5 | enchanted books and the like, not a fish, no length |
-| `mythic` | 0.05 | outside the hundred on purpose, and never lifted |
+| `uncommon` | 75 | spent first: everything the enchantments add comes out of here |
+| `rare` | 15 | lifted by Luck of the Fish, and spent once uncommon is empty |
+| `misc` | 5 | junk, not a fish, no length; lifted by nothing, spent third |
+| `epic` | 4 | lifted by Luck of the Fish, spent last |
+| `legendary` | 0.5 | never spent: the top of the fish side |
+| `treasure` | 0.5 | enchanted books and the like, not a fish, no length; never spent |
+| `mythic` | 0 | off for now; nothing lifts it and nothing spends it |
 | `signature` | 0 | never rolled; for hand-placed fish |
 
 Chances are **weights**. The base set adds up to 100 so the numbers can be read
 as percentages, but only the tiers actually present at a spot take part in the
-draw, so a tier nobody has written an entry for costs nothing.
+draw, so a tier nobody has written an entry for costs nothing. A tier at 0 is out
+of it entirely - neither rolled, nor lifted, nor spent.
+
+### Fish and objects
+
+The table has two sides, named in `config.yml`:
+
+```yaml
+tiers:
+  fish: [uncommon, rare, epic, legendary, mythic, signature]
+  objects: [misc, treasure]
+```
+
+A **fish** tier holds something that was swimming and carries a length. An
+**object** tier holds what the line brings up instead - junk, or a chest's worth
+of enchanted books - and carries no length at all: no `max_length` in the
+definition, no measurement in chat, no record to beat.
 
 ### Rod enchantments
 
-Two enchantments, two jobs, and neither touches the other's tiers.
+The split above is also what the enchantments are worked out from, so nothing
+about them is written down in code:
 
-- **Luck of the Fish** (levels I to V) lifts `rare`, `epic` and `legendary`.
-  The plugin's own enchantment, registered with the server at startup and
-  obtainable from an enchanting table like any other - no datapack to install.
-- **Luck of the Sea** lifts `treasure`, and only `treasure` - that is where the
-  enchanted books are.
+- **Luck of the Fish** (levels I to V, and beyond) lifts the fish side.
+  Registered by the plugin at startup, obtainable from an enchanting table like
+  any other - no datapack to install.
+- **Luck of the Sea** lifts the object side, which is where the treasure is.
 - **Lure** is off by default, keeping its vanilla job of making fish bite sooner.
-  Set its rate above 0 to have it lift the same tiers as Luck of the Fish; the
-  two then multiply.
+  Set its rate above 0 and it lifts the same side as Luck of the Fish; the two
+  then multiply.
 
-Each level adds a share of the tier's **base** weight, and everything added is
-taken back out of `uncommon`. That is what keeps the two independent: a rod
-carrying both applies each in full, and the total still comes to what it was.
-`misc` and `mythic` are lifted by nothing at all.
+On each side, the tier with the **highest** chance pays rather than gains, and
+the tier with the **lowest** chance gains and never pays. Everything between does
+both. With the shipped numbers that makes `uncommon` and `misc` the payers, and
+`legendary` and `treasure` the two that survive.
 
-| | `uncommon` | `rare` | `epic` | `legendary` | `treasure` |
-|---|---|---|---|---|---|
-| base | 75 | 15 | 4 | 0.5 | 0.5 |
-| Luck of the Fish I | 73.05 | 16.5 | 4.4 | 0.55 | 0.5 |
-| Luck of the Fish V | 65.25 | 22.5 | 6 | 0.75 | 0.5 |
-| Luck of the Sea V | 74.75 | 15 | 4 | 0.5 | 0.75 |
+Each level adds a share of a tier's **base** weight, and everything added is
+taken back out of the paying tiers, commonest first, each emptied before the next
+is touched. That keeps the two enchantments independent: a rod carrying both
+applies each in full, and the total still comes to what it was.
 
-Both rates are set in `config.yml`.
+| | `uncommon` | `rare` | `misc` | `epic` | `legendary` | `treasure` |
+|---|---|---|---|---|---|---|
+| base | 75 | 15 | 5 | 4 | 0.5 | 0.5 |
+| Luck of the Fish I | 73.05 | 16.5 | 5 | 4.4 | 0.55 | 0.5 |
+| Luck of the Fish V | 65.25 | 22.5 | 5 | 6 | 0.75 | 0.5 |
+| Luck of the Sea V | 74.75 | 15 | 5 | 4 | 0.5 | 0.75 |
+
+Past the vanilla cap it keeps going rather than levelling off, because the two
+rarest never pay:
+
+| | `uncommon` | `rare` | `misc` | `epic` | `legendary` | `treasure` |
+|---|---|---|---|---|---|---|
+| Luck of the Fish 30 | 16.5 | 60 | 5 | 16 | 2 | 0.5 |
+| Luck of the Fish 60 | 0 | 63 | 5 | 28 | 3.5 | 0.5 |
+| Luck of the Fish 200 | 0 | 0 | 5 | 84 | 10.5 | 0.5 |
+| Luck of the Fish 1000 | 0 | 0 | 0 | 49 | 50.5 | 0.5 |
+| both at 1000 | 0 | 0 | 0 | 0 | 50% | 50% |
+
+So there is no level at which another level stops meaning anything - it just
+becomes a question of one enchantment against the other. Both rates are set in
+`config.yml`.
 
 ### Swarms
 

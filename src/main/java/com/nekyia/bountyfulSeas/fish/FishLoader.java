@@ -79,8 +79,9 @@ public final class FishLoader {
      * Reads the folder recursively. A missing folder simply yields no fish.
      *
      * @param folder the {@code fishes} folder inside the plugin data folder
+     * @param kinds  which tiers are objects, so an entry knows whether it has a length
      */
-    public static FishLoadResult load(Path folder) {
+    public static FishLoadResult load(Path folder, TierKinds kinds) {
         List<FishProblem> problems = new ArrayList<>();
         Map<String, Fish> fishes = new LinkedHashMap<>();
         Map<String, String> declaredIn = new HashMap<>();
@@ -102,7 +103,7 @@ public final class FishLoader {
         }
 
         for (Path file : files) {
-            readFile(folder, file, fishes, declaredIn, problems);
+            readFile(folder, file, kinds, fishes, declaredIn, problems);
         }
 
         return new FishLoadResult(new FishLibrary(fishes), problems);
@@ -113,7 +114,7 @@ public final class FishLoader {
         return name.endsWith(".yaml") || name.endsWith(".yml");
     }
 
-    private static void readFile(Path folder, Path file, Map<String, Fish> fishes,
+    private static void readFile(Path folder, Path file, TierKinds kinds, Map<String, Fish> fishes,
                                  Map<String, String> declaredIn, List<FishProblem> problems) {
         String name = folder.relativize(file).toString().replace('\\', '/');
         String category = category(file);
@@ -142,7 +143,7 @@ public final class FishLoader {
                 continue;
             }
 
-            Fish fish = parse(name, category, id, section, problems);
+            Fish fish = parse(name, category, id, kinds, section, problems);
             if (fish != null) {
                 fishes.put(id, fish);
                 declaredIn.put(id, name);
@@ -157,7 +158,7 @@ public final class FishLoader {
         return dot < 0 ? name : name.substring(0, dot);
     }
 
-    private static Fish parse(String file, String category, String id,
+    private static Fish parse(String file, String category, String id, TierKinds kinds,
                               ConfigurationSection section, List<FishProblem> problems) {
         int before = problems.size();
 
@@ -196,7 +197,8 @@ public final class FishLoader {
             problems.add(FishProblem.fish(file, id, KEY_SPAWN_WEIGHT + " must not be negative"));
         }
         Rarity rarity = rarity(file, id, section, problems);
-        if (rarity != null && rarity.suppressesSize() && maxLength > 0) {
+        boolean object = kinds.isObject(rarity);
+        if (object && maxLength > 0) {
             problems.add(FishProblem.fish(file, id, "is " + rarity.configName()
                     + ", which is not a fish and carries no length, so "
                     + KEY_MAX_LENGTH + " must be left out"));
@@ -210,7 +212,7 @@ public final class FishLoader {
         return new Fish(id, category, name, item, lore,
                 maxLength, level,
                 waterTypes, terrains, vegetations, depths, modifiers, conditions,
-                baitLocked, spawnWeight, rarity, onEat);
+                baitLocked, spawnWeight, rarity, object, onEat);
     }
 
     /**

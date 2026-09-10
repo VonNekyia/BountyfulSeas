@@ -22,6 +22,7 @@ import java.util.Set;
  * @param baitLocked  whether the fish can only be caught with a bait that names it
  * @param spawnWeight relative weight in the catch roll; 0 disables the fish
  * @param rarity      the rarity tier the fish is announced as
+ * @param object      whether this is a thing rather than a fish, so it has no length
  * @param onEat       what eating it does, or null when the fish is not edible
  */
 public record Fish(
@@ -41,6 +42,7 @@ public record Fish(
         boolean baitLocked,
         int spawnWeight,
         Rarity rarity,
+        boolean object,
         OnEat onEat
 ) {
 
@@ -62,7 +64,7 @@ public record Fish(
 
     /** Whether this entry is an object rather than a fish, so it has no length. */
     public boolean isCatchMarker() {
-        return rarity != null && rarity.suppressesSize();
+        return object;
     }
 
     /** Whether this fish can be eaten at all, which is what an on_eat block declares. */

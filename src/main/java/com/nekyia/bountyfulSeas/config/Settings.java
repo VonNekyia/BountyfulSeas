@@ -3,6 +3,7 @@ package com.nekyia.bountyfulSeas.config;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Everything the plugin reads out of {@code config.yml}, already checked.
@@ -19,6 +20,7 @@ import java.util.Map;
  * @param rarityChances relative chance of each tier being rolled, by tier name
  * @param sizes         how rolled lengths are spread between nothing and the maximum
  * @param levels        what a milestone is worth and what each level costs
+ * @param tiers          which tier names are fish and which are objects
  */
 public record Settings(
         String analyzer,
@@ -29,7 +31,8 @@ public record Settings(
         Map<String, Double> rarityChances,
         EnchantmentSettings enchantments,
         SizeSettings sizes,
-        LevelSettings levels
+        LevelSettings levels,
+        TierSettings tiers
 ) {
 
     public Settings {
@@ -111,8 +114,23 @@ public record Settings(
      * @param shape     Z/K, the mortality-to-growth ratio; higher means big ones are rarer
      * @param smallest  the shortest catch, as a fraction of the fish's maximum
      * @param oddsOfMax one catch in this many comes up at the maximum length
+     * @param brackets  the marks along the curve worth naming, longest first
      */
-    public record SizeSettings(double shape, double smallest, long oddsOfMax) {
+    public record SizeSettings(double shape, double smallest, long oddsOfMax,
+                               List<Bracket> brackets) {
+
+        public SizeSettings {
+            brackets = List.copyOf(brackets);
+        }
+
+        /**
+         * One named mark along the length curve.
+         *
+         * @param label  what to call it, such as "top 1%"
+         * @param chance the fraction of catches that reach it
+         */
+        public record Bracket(String label, double chance) {
+        }
     }
 
     /**
@@ -125,5 +143,23 @@ public record Settings(
      */
     public record LevelSettings(long experiencePerStep, long experienceBase,
                                 double steepness, int maxLevel) {
+    }
+
+    /**
+     * The two sides of the table, by tier name.
+     *
+     * <p>Names rather than tiers, because config does not know what a tier is - and
+     * because a name that matches nothing has to survive long enough to be reported
+     * rather than crash the read.
+     *
+     * @param fish    tiers that hold actual fish, which carry a length
+     * @param objects tiers that hold things the line brings up, which carry none
+     */
+    public record TierSettings(Set<String> fish, Set<String> objects) {
+
+        public TierSettings {
+            fish = Set.copyOf(fish);
+            objects = Set.copyOf(objects);
+        }
     }
 }

@@ -2,6 +2,7 @@ package com.nekyia.bountyfulSeas;
 
 import com.nekyia.bountyfulSeas.fish.Fish;
 import com.nekyia.bountyfulSeas.fish.FishLibrary;
+import com.nekyia.bountyfulSeas.fish.TierKinds;
 import com.nekyia.bountyfulSeas.fishing.Catch;
 import com.nekyia.bountyfulSeas.fishing.LengthCurve;
 import com.nekyia.bountyfulSeas.fishing.FishSelector;
@@ -38,6 +39,7 @@ final class FishingListener implements Listener {
     private final Supplier<WaterMap> waterMap;
     private final Supplier<Swarms> swarms;
     private final Supplier<Settings> settings;
+    private final Supplier<TierKinds> kinds;
     private final AnglerLevels levels;
     private final ForcedCatches forced;
     private final CatchRecorder recorder;
@@ -45,12 +47,13 @@ final class FishingListener implements Listener {
 
     FishingListener(Supplier<FishLibrary> fish, Supplier<WaterMap> waterMap,
                     Supplier<Swarms> swarms, Supplier<Settings> settings,
-                    AnglerLevels levels, ForcedCatches forced, CatchRecorder recorder,
-                    Consumer<Player> loadLevel) {
+                    Supplier<TierKinds> kinds, AnglerLevels levels, ForcedCatches forced,
+                    CatchRecorder recorder, Consumer<Player> loadLevel) {
         this.fish = fish;
         this.waterMap = waterMap;
         this.swarms = swarms;
         this.settings = settings;
+        this.kinds = kinds;
         this.levels = levels;
         this.forced = forced;
         this.recorder = recorder;
@@ -124,7 +127,8 @@ final class FishingListener implements Listener {
         Fish picked = arranged == null
                 ? FishSelector.select(fish.get().all(), spot,
                         levels.levelOf(event.getPlayer().getUniqueId()),
-                        RodChances.of(event.getPlayer(), settings.get()), ThreadLocalRandom.current())
+                        RodChances.of(event.getPlayer(), settings.get(), kinds.get()),
+                        ThreadLocalRandom.current())
                 : fish.get().get(arranged.fishId());
         if (picked == null) {
             return;

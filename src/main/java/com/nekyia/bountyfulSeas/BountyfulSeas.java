@@ -14,6 +14,7 @@ import com.nekyia.bountyfulSeas.fish.FishLibrary;
 import com.nekyia.bountyfulSeas.fish.FishLoadResult;
 import com.nekyia.bountyfulSeas.fish.FishLoader;
 import com.nekyia.bountyfulSeas.fish.FishProblem;
+import com.nekyia.bountyfulSeas.fish.TierKinds;
 import com.nekyia.bountyfulSeas.nexo.BlueprintResult;
 import com.nekyia.bountyfulSeas.nexo.NexoBlueprintWriter;
 import com.nekyia.bountyfulSeas.stats.CatchOutcome;
@@ -61,6 +62,7 @@ public final class BountyfulSeas extends JavaPlugin {
     private StatsApi stats;
     private final Swarms swarms = new Swarms();
     private Settings settings;
+    private TierKinds tierKinds = TierKinds.of(java.util.List.of());
     private boolean catchesStored;
     private final ForcedCatches forced = new ForcedCatches();
     private final AnglerLevels levels = new AnglerLevels(
@@ -74,19 +76,22 @@ public final class BountyfulSeas extends JavaPlugin {
      */
     @Override
     public void onLoad() {
+        // Settings first: the fish files cannot be read without knowing which tiers
+        // are objects, because that is what decides whether an entry has a length.
+        saveDefaultConfig();
+        loadSettings();
         loadFish();
         writeNexoBlueprints();
     }
 
     @Override
     public void onEnable() {
-        saveDefaultConfig();
-        loadSettings();
         openCatchStore();
         loadWaterMap();
         getServer().getPluginManager().registerEvents(
                 new FishingListener(this::fish, this::waterMap, this::swarms,
-                        this::settings, levels, forced, this::recordCatch, this::loadLevel), this);
+                        this::settings, this::tierKinds, levels, forced,
+                        this::recordCatch, this::loadLevel), this);
 
         registerCommand();
         reportEnchantments();
@@ -159,7 +164,7 @@ public final class BountyfulSeas extends JavaPlugin {
     private void registerCommand() {
         BountyfulSeasCommand command = new BountyfulSeasCommand(
                 new DebugCommand(this::fish, this::waterMap, this::swarms, this::settings,
-                        this::setCatches, levels, forced,
+                        this::tierKinds, this::setCatches, levels, forced,
                         task -> getServer().getScheduler().runTaskAsynchronously(this, task)),
                 this::regenerateWaterMap,
                 new GuideCommand(this, this::fish, this::stats, levels));
@@ -241,6 +246,7 @@ public final class BountyfulSeas extends JavaPlugin {
     private void loadSettings() {
         List<String> problems = new ArrayList<>();
         settings = SettingsLoader.read(getConfig(), problems);
+        tierKinds = TierKinds.of(settings.tiers().objects());
         for (String problem : problems) {
             getLogger().log(Level.WARNING, "config.yml: {0}", problem);
         }
@@ -382,6 +388,11 @@ public final class BountyfulSeas extends JavaPlugin {
         });
     }
 
+    /** Which tiers are fish and which are objects, as configured. */
+    public TierKinds tierKinds() {
+        return tierKinds;
+    }
+
     /** The fish that loaded cleanly. Never null, possibly empty. */
     public FishLibrary fish() {
         return fish;
@@ -484,7 +495,7 @@ public final class BountyfulSeas extends JavaPlugin {
         Path folder = getDataFolder().toPath().resolve(FISH_FOLDER);
         saveDefaultCategories();
 
-        FishLoadResult result = FishLoader.load(folder);
+        FishLoadResult result = FishLoader.load(folder, tierKinds);
         fish = result.library();
 
         List<FishProblem> problems = result.problems();

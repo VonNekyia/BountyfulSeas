@@ -4,6 +4,7 @@ import com.nekyia.bountyfulSeas.config.Settings;
 import com.nekyia.bountyfulSeas.enchantment.FishingEnchantments;
 import com.nekyia.bountyfulSeas.fish.Fish;
 import com.nekyia.bountyfulSeas.fish.FishLibrary;
+import com.nekyia.bountyfulSeas.fish.TierKinds;
 import com.nekyia.bountyfulSeas.fishing.Chance;
 import com.nekyia.bountyfulSeas.fishing.FishSelector;
 import com.nekyia.bountyfulSeas.fishing.LengthCurve;
@@ -54,6 +55,7 @@ final class DebugCommand {
     private final Supplier<WaterMap> waterMap;
     private final Supplier<Swarms> swarms;
     private final Supplier<Settings> settings;
+    private final Supplier<TierKinds> kinds;
     private final CatchCounts counts;
     private final AnglerLevels levels;
     private final ForcedCatches forced;
@@ -75,12 +77,13 @@ final class DebugCommand {
 
     DebugCommand(Supplier<FishLibrary> fish, Supplier<WaterMap> waterMap,
                  Supplier<Swarms> swarms, Supplier<Settings> settings,
-                 CatchCounts counts, AnglerLevels levels, ForcedCatches forced,
-                 Consumer<Runnable> offThread) {
+                 Supplier<TierKinds> kinds, CatchCounts counts, AnglerLevels levels,
+                 ForcedCatches forced, Consumer<Runnable> offThread) {
         this.fish = fish;
         this.waterMap = waterMap;
         this.swarms = swarms;
         this.settings = settings;
+        this.kinds = kinds;
         this.counts = counts;
         this.levels = levels;
         this.forced = forced;
@@ -210,7 +213,7 @@ final class DebugCommand {
         // The player's own rod, so the odds reported are the odds they will get.
         List<Chance> chances = FishSelector.chances(fish.get().all(), spot,
                 levels.levelOf(player.getUniqueId()),
-                RodChances.of(player, settings.get()));
+                RodChances.of(player, settings.get(), kinds.get()));
         if (chances.isEmpty()) {
             player.sendMessage(error("Nothing lives here. Vanilla keeps the catch."));
             return;
@@ -557,13 +560,12 @@ final class DebugCommand {
         player.sendMessage(detail("beats", trim(100 * (1 - chance)) + "% of catches"));
 
         player.sendMessage(heading("What the curve gives"));
-        player.sendMessage(detail("shortest", cm(curve.shortest(max))));
-        player.sendMessage(detail("half are under", cm(curve.lengthBeatenBy(max, 0.5))));
-        player.sendMessage(detail("top 10%", cm(curve.lengthBeatenBy(max, 0.10))));
-        player.sendMessage(detail("top 1%", cm(curve.lengthBeatenBy(max, 0.01))));
-        player.sendMessage(detail("1 in 1000", cm(curve.lengthBeatenBy(max, 0.001))));
-        player.sendMessage(detail("the record", cm(max) + "   "
-                + odds(curve.chanceOfAtLeast(max, max))));
+        for (Settings.SizeSettings.Bracket bracket : settings.get().sizes().brackets()) {
+            double at = curve.lengthBeatenBy(max, bracket.chance());
+            player.sendMessage(detail(bracket.label(), cm(at)
+                    + (length >= at ? "   reached" : "")));
+        }
+        player.sendMessage(detail("shortest there is", cm(curve.shortest(max))));
     }
 
     /** A chance as odds, because "0.0001%" says less than "1 in a million". */

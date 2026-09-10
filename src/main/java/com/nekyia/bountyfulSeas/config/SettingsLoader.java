@@ -4,7 +4,11 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -23,6 +27,20 @@ public final class SettingsLoader {
     private static final double MIN_SIZE_SHAPE = 0.1;
     private static final double MAX_SIZE_SMALLEST = 0.95;
     private static final double MIN_STEEPNESS = 1.0;
+
+    /** Must stay in step with the {@code tiers} block in config.yml. */
+    private static final Set<String> DEFAULT_FISH_TIERS = Set.of(
+            "uncommon", "rare", "epic", "legendary", "mythic", "signature");
+
+    private static final Set<String> DEFAULT_OBJECT_TIERS = Set.of("misc", "treasure");
+
+    /** Must stay in step with the {@code sizes.brackets} list in config.yml. */
+    private static final List<Settings.SizeSettings.Bracket> DEFAULT_BRACKETS = List.of(
+            new Settings.SizeSettings.Bracket("a record", 0.000001),
+            new Settings.SizeSettings.Bracket("1 in 1000", 0.001),
+            new Settings.SizeSettings.Bracket("top 1%", 0.01),
+            new Settings.SizeSettings.Bracket("top 10%", 0.10),
+            new Settings.SizeSettings.Bracket("above average", 0.50));
     private static final long MIN_ROTATION_MINUTES = 1;
 
     /** Must stay in step with the {@code rarity-chances} block in config.yml. */
@@ -33,7 +51,7 @@ public final class SettingsLoader {
             "epic", 4.0,
             "legendary", 0.5,
             "treasure", 0.5,
-            "mythic", 0.05,
+            "mythic", 0.0,
             "signature", 0.0);
 
     private SettingsLoader() {
@@ -52,7 +70,45 @@ public final class SettingsLoader {
                 rarityChances(config, problems),
                 enchantments(config, problems),
                 sizes(config, problems),
-                levels(config, problems));
+                levels(config, problems),
+                tiers(config, problems));
+    }
+
+    /**
+     * Which tiers are fish and which are objects.
+     *
+     * <p>Worth checking properly rather than clamping: a tier in neither list, or
+     * in both, changes what the enchantments do to it, and doing that silently
+     * would be a balance change nobody asked for.
+     */
+    private static Settings.TierSettings tiers(FileConfiguration config, List<String> problems) {
+        Set<String> fish = names(config, "tiers.fish", DEFAULT_FISH_TIERS);
+        Set<String> objects = names(config, "tiers.objects", DEFAULT_OBJECT_TIERS);
+
+        for (String name : fish) {
+            if (objects.contains(name)) {
+                problems.add("tiers." + name + " is listed as both fish and object; "
+                        + "treating it as an object");
+            }
+        }
+        for (String name : DEFAULT_RARITY_CHANCES.keySet()) {
+            if (!fish.contains(name) && !objects.contains(name)) {
+                problems.add("tiers has no side for " + name + ", so it counts as fish");
+            }
+        }
+        return new Settings.TierSettings(fish, objects);
+    }
+
+    private static Set<String> names(FileConfiguration config, String path, Set<String> fallback) {
+        List<String> listed = config.getStringList(path);
+        if (listed.isEmpty()) {
+            return fallback;
+        }
+        Set<String> names = new LinkedHashSet<>();
+        for (String name : listed) {
+            names.add(name.trim().toLowerCase(Locale.ROOT));
+        }
+        return names;
     }
 
     /** What a milestone pays and what a level costs. */
@@ -112,7 +168,44 @@ public final class SettingsLoader {
             problems.add("sizes.record-odds was " + odds + ", which cannot be below 1; using 1");
             odds = 1;
         }
-        return new Settings.SizeSettings(shape, smallest, odds);
+        return new Settings.SizeSettings(shape, smallest, odds, brackets(config, problems));
+    }
+
+    /**
+     * The marks along the length curve worth naming.
+     *
+     * <p>A list of label and chance pairs rather than fixed steps in the code,
+     * because what counts as a good fish is a judgement about a server rather than
+     * a fact about the curve.
+     */
+    private static List<Settings.SizeSettings.Bracket> brackets(FileConfiguration config,
+                                                                List<String> problems) {
+        List<Settings.SizeSettings.Bracket> brackets = new ArrayList<>();
+
+        for (Map<?, ?> entry : config.getMapList("sizes.brackets")) {
+            Object label = entry.get("label");
+            Object chance = entry.get("chance");
+            if (label == null || !(chance instanceof Number reached)) {
+                problems.add("a sizes.brackets entry needs a label and a chance; skipping " + entry);
+                continue;
+            }
+            double fraction = reached.doubleValue();
+            if (fraction <= 0 || fraction > 1) {
+                problems.add("sizes.brackets " + label + " was " + fraction
+                        + ", which has to be between 0 and 1; skipping it");
+                continue;
+            }
+            brackets.add(new Settings.SizeSettings.Bracket(String.valueOf(label), fraction));
+        }
+
+        if (brackets.isEmpty()) {
+            problems.add("no sizes.brackets, so the built-in marks are used");
+            return DEFAULT_BRACKETS;
+        }
+
+        // Longest first, so the list reads downwards however it was written.
+        brackets.sort(Comparator.comparingDouble(Settings.SizeSettings.Bracket::chance));
+        return List.copyOf(brackets);
     }
 
     private static Settings.EnchantmentSettings enchantments(FileConfiguration config,

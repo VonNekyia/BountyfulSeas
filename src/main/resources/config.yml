@@ -80,8 +80,24 @@ sizes:
 
   # One catch in this many comes up at exactly the maximum length. That is the
   # record - the number in the fish file is not where the fish stop growing, it
-  # is the length hardly anyone ever sees.
+  # is the length hardly anyone ever sees. Lengths are truncated to two decimals
+  # rather than rounded, so a catch reads as the maximum only when it reached it.
   record-odds: 1000000
+
+  # The marks along the curve worth naming, used by /bs debug lengthvalue to say
+  # what a length amounts to. A label and the fraction of catches that reach it;
+  # write as many or as few as you like, in any order.
+  brackets:
+    - label: "a record"
+      chance: 0.000001
+    - label: "1 in 1000"
+      chance: 0.001
+    - label: "top 1%"
+      chance: 0.01
+    - label: "top 10%"
+      chance: 0.10
+    - label: "above average"
+      chance: 0.50
 
 # The angling level.
 #
@@ -110,25 +126,46 @@ levels:
 
   max-level: 50
 
+# The two sides of the table.
+#
+# A fish tier holds things that were swimming and carry a length. An object tier
+# holds what the line brings up instead - junk, or a chest's worth of enchanted
+# books - and those carry no length at all: no max_length in the definition, no
+# measurement in chat, no record to beat.
+#
+# This split is also what the two luck enchantments are worked out from, so it is
+# worth getting right. On each side, the tier with the HIGHEST chance is the one
+# that pays for the enchantment rather than gaining from it, and the tier with the
+# LOWEST chance is the one that gains and never pays. Everything in between does
+# both. With the chances below that makes uncommon and misc the payers, and
+# legendary and treasure the two that survive any amount of enchanting.
+#
+# A tier at chance 0 is out of it entirely - neither lifted nor spent.
+tiers:
+  fish: [uncommon, rare, epic, legendary, mythic, signature]
+  objects: [misc, treasure]
+
 # How likely each tier is when something bites. The tier is drawn first, then an
 # entry from within it by spawn_weight - so the odds of a legendary do not change
 # just because a spot happens to hold three of them.
 #
-# These are weights. The base set adds up to 100, and what an enchantment adds to
-# a better tier is taken back out of uncommon, so it stays adding up. Only the
-# tiers actually present at a spot take part in the draw.
+# These are weights. The base set adds up to 100, so the numbers read as
+# percentages, and what an enchantment adds to a better tier is taken back out of
+# the tiers below - uncommon first, then rare, then misc, then epic, each emptied
+# before the next is touched. Only the tiers actually present at a spot take part
+# in the draw.
 #
 # misc is junk and treasure is loot; both are tiers rather than fish and carry no
 # length. signature is reserved for hand-placed fish and is never rolled by
 # default - give it a weight above 0 to put it in the draw.
 rarity-chances:
-  uncommon: 75      # the buffer: everything the enchantments add comes out of here
-  rare: 15
-  misc: 5           # junk, and no enchantment lifts it
-  epic: 4
-  legendary: 0.5
-  treasure: 0.5     # enchanted books and the like, lifted by Luck of the Sea
-  mythic: 0.05      # outside the hundred on purpose, and never lifted
+  uncommon: 75      # spent first: everything the enchantments add comes out of here
+  rare: 15          # lifted by Luck of the Fish, and spent once uncommon is empty
+  misc: 5           # junk, lifted by nothing, spent third
+  epic: 4           # lifted by Luck of the Fish, spent last
+  legendary: 0.5    # never spent: the top of the fish side
+  treasure: 0.5     # enchanted books and the like, lifted by Luck of the Sea, never spent
+  mythic: 0         # off for now; nothing lifts it and nothing spends it
   signature: 0      # hand-placed only
 
 # What a rod's enchantments are worth. Each adds a percentage of the tier's BASE
@@ -140,6 +177,12 @@ rarity-chances:
 #   Luck of the Sea V:   treasure 0.5 -> 0.75, uncommon 75 -> 74.75
 #
 # Both apply in full on a rod carrying both.
+#
+# Past the vanilla cap this keeps going rather than levelling off. Once uncommon
+# is spent, rare pays, then misc, then epic - so a rod at Luck of the Fish 60 sits
+# at rare 63, epic 28, legendary 3.5 and no uncommon at all, and one far past that
+# has only legendary and treasure left. Neither of those ever pays, so there is no
+# level at which another level stops meaning anything.
 enchantments:
   luck-of-the-fish:
     # The plugin's own enchantment, registered at startup and obtainable from an
