@@ -1,6 +1,5 @@
 package com.nekyia.bountyfulSeas.fish;
 
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -11,7 +10,7 @@ import java.util.List;
 public record FishLoadResult(FishLibrary library, List<FishProblem> problems) {
 
     public FishLoadResult {
-        problems = Collections.unmodifiableList(List.copyOf(problems));
+        problems = List.copyOf(problems);
     }
 
     public boolean hasProblems() {

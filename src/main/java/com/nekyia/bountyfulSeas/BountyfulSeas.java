@@ -62,7 +62,7 @@ public final class BountyfulSeas extends JavaPlugin {
     private StatsApi stats;
     private final Swarms swarms = new Swarms();
     private Settings settings;
-    private TierKinds tierKinds = TierKinds.of(java.util.List.of());
+    private TierKinds tierKinds = TierKinds.of(List.of());
     private boolean catchesStored;
     private final ForcedCatches forced = new ForcedCatches();
     private final AnglerLevels levels = new AnglerLevels(

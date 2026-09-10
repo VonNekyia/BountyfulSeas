@@ -22,6 +22,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -91,7 +92,7 @@ final class FishingListener implements Listener {
     /** Where a landed catch is sent to be counted. */
     @FunctionalInterface
     interface CatchRecorder {
-        void record(java.util.UUID player, String fishId, double length);
+        void record(UUID player, String fishId, double length);
     }
 
     /**

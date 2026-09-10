@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
@@ -73,7 +74,7 @@ final class BountyfulSeasCommand implements BasicCommand {
                 sender.sendMessage(Component.text("Only a player has a fishing line.", NamedTextColor.RED));
                 return;
             }
-            debug.run(player, java.util.Arrays.copyOfRange(args, 1, args.length));
+            debug.run(player, Arrays.copyOfRange(args, 1, args.length));
             return;
         }
 
@@ -125,7 +126,7 @@ final class BountyfulSeasCommand implements BasicCommand {
             return guide.categories().stream().filter(name -> name.startsWith(typed)).toList();
         }
         if (args[0].equalsIgnoreCase(DEBUG) && sender.hasPermission(DEBUG_PERMISSION)) {
-            return debug.suggest(java.util.Arrays.copyOfRange(args, 1, args.length));
+            return debug.suggest(Arrays.copyOfRange(args, 1, args.length));
         }
         return List.of();
     }

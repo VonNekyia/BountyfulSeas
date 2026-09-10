@@ -15,6 +15,7 @@ import org.bukkit.plugin.Plugin;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -73,7 +74,7 @@ final class GuideCommand {
                 if (category == null) {
                     new GuideMenu(player, library, totals, ICONS, levels.progressOf(player.getUniqueId())).open();
                 } else {
-                    new CategoryMenu(player, category.toLowerCase(java.util.Locale.ROOT),
+                    new CategoryMenu(player, category.toLowerCase(Locale.ROOT),
                             library, totals, ICONS, levels.progressOf(player.getUniqueId())).open();
                 }
             });
