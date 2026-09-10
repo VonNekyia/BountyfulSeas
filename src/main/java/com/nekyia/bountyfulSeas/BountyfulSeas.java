@@ -62,6 +62,7 @@ public final class BountyfulSeas extends JavaPlugin {
     private final Swarms swarms = new Swarms();
     private Settings settings;
     private boolean catchesStored;
+    private final ForcedCatches forced = new ForcedCatches();
     private final AnglerLevels levels = new AnglerLevels(
             this::fish, this::stats, this::levelCurve, this::experienceRule,
             () -> catchesStored);
@@ -85,7 +86,7 @@ public final class BountyfulSeas extends JavaPlugin {
         loadWaterMap();
         getServer().getPluginManager().registerEvents(
                 new FishingListener(this::fish, this::waterMap, this::swarms,
-                        this::settings, levels, this::recordCatch, this::loadLevel), this);
+                        this::settings, levels, forced, this::recordCatch, this::loadLevel), this);
 
         registerCommand();
         reportEnchantments();
@@ -93,6 +94,17 @@ public final class BountyfulSeas extends JavaPlugin {
         publishWaterOverlay();
         rescanOnStart();
         getLogger().log(Level.INFO, "Ready with {0} fish.", fish.size());
+    }
+
+    /**
+     * Puts a catch count at a number, for the debug command.
+     *
+     * <p>The cached figures have to go with it, or the level worked out a moment
+     * later would be read back from a cache that has not heard about this.
+     */
+    private void setCatches(UUID player, String fishId, long catches) {
+        catchStore.setCatches(player, fishId, catches);
+        stats.invalidate(player);
     }
 
     /** The configured level curve, read fresh so a config reload is felt. */
@@ -146,7 +158,9 @@ public final class BountyfulSeas extends JavaPlugin {
      */
     private void registerCommand() {
         BountyfulSeasCommand command = new BountyfulSeasCommand(
-                new DebugCommand(this::fish, this::waterMap, this::swarms, this::settings, levels),
+                new DebugCommand(this::fish, this::waterMap, this::swarms, this::settings,
+                        this::setCatches, levels, forced,
+                        task -> getServer().getScheduler().runTaskAsynchronously(this, task)),
                 this::regenerateWaterMap,
                 new GuideCommand(this, this::fish, this::stats, levels));
 

@@ -39,17 +39,20 @@ final class FishingListener implements Listener {
     private final Supplier<Swarms> swarms;
     private final Supplier<Settings> settings;
     private final AnglerLevels levels;
+    private final ForcedCatches forced;
     private final CatchRecorder recorder;
     private final Consumer<Player> loadLevel;
 
     FishingListener(Supplier<FishLibrary> fish, Supplier<WaterMap> waterMap,
                     Supplier<Swarms> swarms, Supplier<Settings> settings,
-                    AnglerLevels levels, CatchRecorder recorder, Consumer<Player> loadLevel) {
+                    AnglerLevels levels, ForcedCatches forced, CatchRecorder recorder,
+                    Consumer<Player> loadLevel) {
         this.fish = fish;
         this.waterMap = waterMap;
         this.swarms = swarms;
         this.settings = settings;
         this.levels = levels;
+        this.forced = forced;
         this.recorder = recorder;
         this.loadLevel = loadLevel;
     }
@@ -114,9 +117,15 @@ final class FishingListener implements Listener {
         }
 
         WaterSpot spot = WaterSpot.of(region, hook.getWorld(), swarms.get());
-        Fish picked = FishSelector.select(fish.get().all(), spot,
-                levels.levelOf(event.getPlayer().getUniqueId()),
-                RodChances.of(event.getPlayer(), settings.get()), ThreadLocalRandom.current());
+        // An arranged bite skips the roll but nothing else: the water still has to
+        // be fishable and the item still has to exist, so what comes up is a real
+        // catch rather than something conjured past the parts being tested.
+        ForcedCatches.Forced arranged = forced.take(event.getPlayer().getUniqueId());
+        Fish picked = arranged == null
+                ? FishSelector.select(fish.get().all(), spot,
+                        levels.levelOf(event.getPlayer().getUniqueId()),
+                        RodChances.of(event.getPlayer(), settings.get()), ThreadLocalRandom.current())
+                : fish.get().get(arranged.fishId());
         if (picked == null) {
             return;
         }
@@ -127,7 +136,9 @@ final class FishingListener implements Listener {
             return;
         }
 
-        Catch landed = Catch.roll(picked, lengthCurve(), ThreadLocalRandom.current());
+        Catch landed = arranged != null && arranged.length() != null
+                ? new Catch(picked, arranged.length())
+                : Catch.roll(picked, lengthCurve(), ThreadLocalRandom.current());
         caught.setItemStack(stack);
         event.getPlayer().sendMessage(CatchMessage.of(landed, stack));
 

@@ -54,6 +54,12 @@ public final class HikariCatchStore implements CatchStore, AutoCloseable {
             FROM bs_player_fish WHERE fish_id = ?
             """;
 
+    private static final String SET_CATCHES = """
+            INSERT INTO bs_player_fish (player, fish_id, catches, longest)
+            VALUES (?, ?, ?, 0)
+            ON DUPLICATE KEY UPDATE catches = VALUES(catches)
+            """;
+
     private static final String BY_PLAYER_AND_FISH = """
             SELECT fish_id, catches, longest
             FROM bs_player_fish WHERE player = ? AND fish_id = ?
@@ -172,6 +178,19 @@ public final class HikariCatchStore implements CatchStore, AutoCloseable {
                     serverBest > 0 && length > serverBest ? serverBest : 0);
         } catch (SQLException failure) {
             throw new IllegalStateException("could not record a catch of " + fishId, failure);
+        }
+    }
+
+    @Override
+    public void setCatches(UUID player, String fishId, long catches) {
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(SET_CATCHES)) {
+            statement.setString(1, player.toString());
+            statement.setString(2, fishId);
+            statement.setLong(3, Math.max(0, catches));
+            statement.executeUpdate();
+        } catch (SQLException failure) {
+            throw new IllegalStateException("could not set the count for " + fishId, failure);
         }
     }
 

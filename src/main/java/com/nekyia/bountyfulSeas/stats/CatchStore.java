@@ -24,6 +24,14 @@ public interface CatchStore {
      */
     CatchOutcome record(UUID player, String fishId, double length);
 
+    /**
+     * Puts a player's count for one fish at exactly this number.
+     *
+     * <p>For setting up a state to look at rather than fishing towards it. The
+     * longest is left alone: a count says nothing about what was landed.
+     */
+    void setCatches(UUID player, String fishId, long catches);
+
     /** One player's totals for one fish, never null. */
     FishStats forPlayer(UUID player, String fishId);
 

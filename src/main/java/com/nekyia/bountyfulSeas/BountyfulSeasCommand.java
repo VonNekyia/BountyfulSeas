@@ -73,7 +73,7 @@ final class BountyfulSeasCommand implements BasicCommand {
                 sender.sendMessage(Component.text("Only a player has a fishing line.", NamedTextColor.RED));
                 return;
             }
-            debug.run(player);
+            debug.run(player, java.util.Arrays.copyOfRange(args, 1, args.length));
             return;
         }
 
@@ -111,6 +111,9 @@ final class BountyfulSeasCommand implements BasicCommand {
         if (args.length == 2 && args[0].equalsIgnoreCase(GUIDE) && sender.hasPermission(GUIDE_PERMISSION)) {
             String typed = args[1].toLowerCase(Locale.ROOT);
             return guide.categories().stream().filter(name -> name.startsWith(typed)).toList();
+        }
+        if (args[0].equalsIgnoreCase(DEBUG) && sender.hasPermission(DEBUG_PERMISSION)) {
+            return debug.suggest(java.util.Arrays.copyOfRange(args, 1, args.length));
         }
         return List.of();
     }

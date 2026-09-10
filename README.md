@@ -252,11 +252,30 @@ definition asks for it.
 
 | Command | Permission | What it does |
 |---|---|---|
-| `/bs debug` | `bountyfulseas.debug` | The water under your bobber and the odds of every fish there |
+| `/bs debug [...]` | `bountyfulseas.debug` | Look at a fish table, and put it in a state worth looking at |
 | `/bs watermapregenerate` | `bountyfulseas.watermapregenerate` | Rescans the world, reloads the map and redraws the overlay |
 
 `/bs watermapregenerate` needs `water-map.analyzer` in `config.yml` pointing at the
 `water-analyzer` executable.
+
+
+### Debug
+
+Each of these answers a question that is otherwise answered by fishing for an
+afternoon. None of them invents its answer: they go through the same curve,
+selector and store a real catch goes through.
+
+| | |
+|---|---|
+| `/bs debug bobber` | the water under your bobber, your level, and the odds of every fish there. The default when no subcommand is given |
+| `/bs debug swarm` | where every swarm sits right now, as coordinates and how far off |
+| `/bs debug item <fish> [cm]` | make the next bite hand over that fish, optionally at a length. One bite only, and the water still has to be fishable. Run it bare to cancel |
+| `/bs debug enchant` | every enchantment the held rod will take |
+| `/bs debug enchant <enchantment>` | what it does *here*, which is not always what it does in vanilla |
+| `/bs debug enchant <enchantment> <level>` | put it on the rod. Levels past the vanilla cap are allowed; 0 removes it |
+| `/bs debug set <fish> <count>` | put your catch count at a number, milestones and level and all |
+| `/bs debug lengthvalue <fish> <cm>` | what that length amounts to - how rare it is, what it beats, and the whole curve's boundary values |
+
 
 ## Building
 

@@ -24,6 +24,10 @@ public final class CatchStores {
             }
 
             @Override
+            public void setCatches(UUID player, String fishId, long catches) {
+            }
+
+            @Override
             public FishStats forPlayer(UUID player, String fishId) {
                 return FishStats.none(fishId);
             }

@@ -59,6 +59,35 @@ public record LengthCurve(double shape, double smallest, long oddsOfMax) {
         return lengthAt(max, random.nextDouble() * topBand());
     }
 
+    /** The shortest a catch of this fish can be. */
+    public double shortest(double max) {
+        return round(max * smallest);
+    }
+
+    /**
+     * How often a catch is at least this long, as a fraction of all catches.
+     *
+     * <p>The roll read backwards, so what this reports and what the water gives
+     * cannot disagree. At the maximum it is exactly the record odds.
+     */
+    public double chanceOfAtLeast(double max, double length) {
+        double floor = max * smallest;
+        if (length <= floor) {
+            return 1;
+        }
+        if (length > max) {
+            return 0;
+        }
+        double climbed = (length - floor) / (max - floor);
+        double u = Math.pow(1 - climbed * (1 - reach()), shape);
+        return Math.clamp(u, 0, 1);
+    }
+
+    /** The length that only this fraction of catches reaches or beats. */
+    public double lengthBeatenBy(double max, double chance) {
+        return lengthAt(max, Math.clamp(chance, 0, 1));
+    }
+
     /**
      * The length a roll of {@code u} lands on.
      *
@@ -66,20 +95,34 @@ public record LengthCurve(double shape, double smallest, long oddsOfMax) {
      * numbers serve every fish and only the last line knows about cm.
      */
     private double lengthAt(double max, double u) {
-        double reach = Math.pow(1.0 / Math.max(1, oddsOfMax), 1 / shape);
-
         // 0 at the smallest the gear retains, 1 at the maximum, and beyond it only
         // for the one roll in a million that overshoots - which is then clamped.
-        double climbed = (1 - Math.pow(u, 1 / shape)) / (1 - reach);
+        double climbed = (1 - Math.pow(u, 1 / shape)) / (1 - reach());
 
-        double shortest = max * smallest;
-        double length = shortest + (max - shortest) * climbed;
-        return Math.min(max, Math.round(length * PRECISION) / PRECISION);
+        double floor = max * smallest;
+        return Math.min(max, round(floor + (max - floor) * climbed));
+    }
+
+    /**
+     * Two decimals, always downwards.
+     *
+     * <p>Downwards rather than to the nearest on purpose. Rounding to the nearest
+     * would let everything from half a hundredth below the maximum come up reading
+     * as the maximum, which quietly widens the record: for a 22 cm fish that top
+     * step held 1.09 catches in a million rather than 1. Truncating means a catch
+     * reads as the maximum only when it genuinely reached it.
+     */
+    private static double round(double length) {
+        return Math.floor(length * PRECISION) / PRECISION;
+    }
+
+    /** How close to the asymptote the maximum sits, which is what fixes the odds. */
+    private double reach() {
+        return Math.pow(1.0 / Math.max(1, oddsOfMax), 1 / shape);
     }
 
     /** The roll below which a length lands in the top band. */
     private double topBand() {
-        double reach = Math.pow(1.0 / Math.max(1, oddsOfMax), 1 / shape);
-        return Math.pow(1 - (1 - MYTHIC_BAND) * (1 - reach), shape);
+        return Math.pow(1 - (1 - MYTHIC_BAND) * (1 - reach()), shape);
     }
 }
