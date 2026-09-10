@@ -309,6 +309,24 @@ definition asks for it.
 `water-analyzer` executable.
 
 
+### Records
+
+Right-click a category in the guide for the longest of every fish in it: who
+holds it, how long, your own best, and where you stand. Ties share a place, so
+two anglers with the same longest are both second and nobody is third.
+
+Everything a guide screen shows is fetched **once**, before the first menu opens,
+in three cached queries - the viewer's totals, the whole record board, and the
+viewer's places. Clicking through categories, records, levels and back again
+costs nothing further. A menu builds on the server thread, so a lookup there
+would be a stall every viewer pays for, once per screen.
+
+The record board is one query for every fish rather than one per fish, using
+window functions, and is shared by every viewer for `database.cache-seconds`. A
+player's own figures are dropped the moment they catch something, so their guide
+is never behind.
+
+
 ### Debug
 
 Each of these answers a question that is otherwise answered by fishing for an

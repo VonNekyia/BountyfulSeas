@@ -48,6 +48,16 @@ public final class CatchStores {
             }
 
             @Override
+            public Map<String, FishRecord> records() {
+                return Map.of();
+            }
+
+            @Override
+            public Map<String, Integer> placesOf(UUID player) {
+                return Map.of();
+            }
+
+            @Override
             public List<PlayerTotal> topBy(String fishId, int limit) {
                 return List.of();
             }

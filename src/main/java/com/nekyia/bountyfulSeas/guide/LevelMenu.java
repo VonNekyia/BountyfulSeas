@@ -2,7 +2,6 @@ package com.nekyia.bountyfulSeas.guide;
 
 import com.nekyia.bountyfulSeas.fish.Fish;
 import com.nekyia.bountyfulSeas.level.Progress;
-import com.nekyia.bountyfulSeas.stats.FishStats;
 import de.mcterranova.terranovaLib.roseGUI.RoseGUI;
 import de.mcterranova.terranovaLib.roseGUI.RoseItem;
 import net.kyori.adventure.text.Component;
@@ -38,16 +37,16 @@ public final class LevelMenu extends RoseGUI {
             28, 29, 30, 31, 32, 33, 34};
 
     private final Collection<Fish> library;
-    private final Map<String, FishStats> caught;
+    private final GuideStandings standings;
     private final FishIcons icons;
     private final Progress standing;
 
     public LevelMenu(Player player, Collection<Fish> library,
-                     Map<String, FishStats> caught, FishIcons icons, Progress standing) {
+                     GuideStandings standings, FishIcons icons, Progress standing) {
         super(player, "bountyfulseas-levels",
                 Component.text("Angling Levels", NamedTextColor.AQUA, TextDecoration.BOLD), 5);
         this.library = library;
-        this.caught = caught;
+        this.standings = standings;
         this.icons = icons;
         this.standing = standing;
     }
@@ -72,7 +71,7 @@ public final class LevelMenu extends RoseGUI {
                 .displayName(Component.text("Back", NamedTextColor.YELLOW)
                         .decoration(TextDecoration.ITALIC, false))
                 .build()
-                .onClick(click -> new GuideMenu(player, library, caught, icons, standing).open()));
+                .onClick(click -> new GuideMenu(player, library, standings, icons, standing).open()));
     }
 
     /** Every level something is locked behind, lowest first, with what it opens. */
@@ -95,7 +94,7 @@ public final class LevelMenu extends RoseGUI {
                 NamedTextColor.GRAY));
 
         for (Fish fish : opens) {
-            boolean found = caught.getOrDefault(fish.id(), FishStats.none(fish.id())).caught();
+            boolean found = standings.statsOf(fish.id()).caught();
             Component name = found
                     ? MiniMessage.miniMessage().deserialize(fish.name())
                     : Component.text("???", NamedTextColor.DARK_GRAY);

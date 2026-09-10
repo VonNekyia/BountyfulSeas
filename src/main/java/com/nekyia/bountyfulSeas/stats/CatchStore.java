@@ -45,6 +45,23 @@ public interface CatchStore {
     Map<String, FishStats> forServer();
 
     /**
+     * The record holder for every fish anyone has landed, keyed by fish id.
+     *
+     * <p>One query for the whole board rather than one per fish: a guide screen
+     * asks about a category at a time, and asking six times would be six round
+     * trips for something that is read far more often than it changes.
+     */
+    Map<String, FishRecord> records();
+
+    /**
+     * Where one player stands on every fish they have landed, keyed by fish id.
+     *
+     * <p>Place 1 is the record holder. Ties share a place, so two players with the
+     * same longest are both second and nobody is third.
+     */
+    Map<String, Integer> placesOf(UUID player);
+
+    /**
      * The players with the most catches of one fish, best first.
      *
      * <p>Here for the ranking that is meant to be built elsewhere, so that work

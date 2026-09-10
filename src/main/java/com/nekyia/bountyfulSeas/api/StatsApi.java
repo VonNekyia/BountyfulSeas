@@ -1,5 +1,6 @@
 package com.nekyia.bountyfulSeas.api;
 
+import com.nekyia.bountyfulSeas.stats.FishRecord;
 import com.nekyia.bountyfulSeas.stats.FishStats;
 import com.nekyia.bountyfulSeas.stats.PlayerTotal;
 
@@ -28,6 +29,12 @@ public interface StatsApi {
 
     /** Server-wide totals for every fish anyone has caught. */
     Map<String, FishStats> server();
+
+    /** The record holder for every fish anyone has landed, keyed by fish id. */
+    Map<String, FishRecord> records();
+
+    /** Where one player stands on every fish they have landed, keyed by fish id. */
+    Map<String, Integer> places(UUID player);
 
     /** The players with the most of one fish, best first. */
     List<PlayerTotal> top(String fishId, int limit);

@@ -1,8 +1,8 @@
 package com.nekyia.bountyfulSeas.guide;
 
 import com.nekyia.bountyfulSeas.fish.Fish;
-import com.nekyia.bountyfulSeas.level.Progress;
 import com.nekyia.bountyfulSeas.stats.FishStats;
+import com.nekyia.bountyfulSeas.level.Progress;
 import de.mcterranova.terranovaLib.roseGUI.RoseGUI;
 import de.mcterranova.terranovaLib.roseGUI.RoseItem;
 import net.kyori.adventure.text.Component;
@@ -33,7 +33,7 @@ public final class GuideMenu extends RoseGUI {
             28, 29, 30, 31, 32, 33, 34};
 
     private final Collection<Fish> fishes;
-    private final Map<String, FishStats> caught;
+    private final GuideStandings standings;
     private final FishIcons icons;
 
     /**
@@ -45,11 +45,11 @@ public final class GuideMenu extends RoseGUI {
     private final Progress standing;
 
     public GuideMenu(Player player, Collection<Fish> fishes,
-                     Map<String, FishStats> caught, FishIcons icons, Progress standing) {
+                     GuideStandings standings, FishIcons icons, Progress standing) {
         super(player, "bountyfulseas-guide",
                 Component.text("Fishing Guide", NamedTextColor.AQUA, TextDecoration.BOLD), 5);
         this.fishes = fishes;
-        this.caught = caught;
+        this.standings = standings;
         this.icons = icons;
         this.standing = standing;
     }
@@ -103,7 +103,7 @@ public final class GuideMenu extends RoseGUI {
                         GuideText.blank(),
                         GuideText.line("Click to see what opens where", NamedTextColor.YELLOW))
                 .build()
-                .onClick(click -> new LevelMenu(player, fishes, caught, icons, standing).open());
+                .onClick(click -> new LevelMenu(player, fishes, standings, icons, standing).open());
     }
 
     private RoseItem categoryIcon(String category, List<Fish> inCategory, long found, long catches) {
@@ -116,6 +116,7 @@ public final class GuideMenu extends RoseGUI {
         lore.add(GuideText.line(catches + " caught in total", NamedTextColor.DARK_GRAY));
         lore.add(GuideText.blank());
         lore.add(GuideText.line("Click to open", NamedTextColor.YELLOW));
+        lore.add(GuideText.line("Right-click for the records", NamedTextColor.GOLD));
 
         RoseItem item = new RoseItem.Builder()
                 // A finished category is enchanted-looking; an empty one stays drab.
@@ -127,8 +128,13 @@ public final class GuideMenu extends RoseGUI {
                 .addLore(lore.toArray(new Component[0]))
                 .build();
 
-        return item.onClick(click ->
-                new CategoryMenu(player, category, fishes, caught, icons, standing).open());
+        return item.onClick(click -> {
+            if (click.isRightClick()) {
+                new RecordsMenu(player, category, fishes, standings, icons, standing).open();
+                return;
+            }
+            new CategoryMenu(player, category, fishes, standings, icons, standing).open();
+        });
     }
 
     private RoseItem summaryIcon(long found, long total) {
@@ -158,7 +164,7 @@ public final class GuideMenu extends RoseGUI {
     }
 
     private FishStats stats(Fish fish) {
-        return caught.getOrDefault(fish.id(), FishStats.none(fish.id()));
+        return standings.statsOf(fish.id());
     }
 
     static Map<String, List<Fish>> byCategory(Collection<Fish> fishes) {

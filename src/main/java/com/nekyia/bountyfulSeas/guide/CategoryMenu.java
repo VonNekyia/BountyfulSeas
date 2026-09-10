@@ -1,8 +1,8 @@
 package com.nekyia.bountyfulSeas.guide;
 
 import com.nekyia.bountyfulSeas.fish.Fish;
-import com.nekyia.bountyfulSeas.level.Progress;
 import com.nekyia.bountyfulSeas.stats.FishStats;
+import com.nekyia.bountyfulSeas.level.Progress;
 import de.mcterranova.terranovaLib.roseGUI.RoseGUI;
 import de.mcterranova.terranovaLib.roseGUI.RoseItem;
 import net.kyori.adventure.text.Component;
@@ -28,7 +28,7 @@ public final class CategoryMenu extends RoseGUI {
             28, 29, 30, 31, 32, 33, 34};
 
     private final List<Fish> fishes;
-    private final Map<String, FishStats> caught;
+    private final GuideStandings standings;
     private final FishIcons icons;
     private final Progress standing;
 
@@ -36,12 +36,12 @@ public final class CategoryMenu extends RoseGUI {
     private final Collection<Fish> library;
 
     public CategoryMenu(Player player, String category, Collection<Fish> library,
-                        Map<String, FishStats> caught, FishIcons icons, Progress standing) {
+                        GuideStandings standings, FishIcons icons, Progress standing) {
         super(player, "bountyfulseas-category",
                 Component.text(GuideText.readable(category), NamedTextColor.AQUA, TextDecoration.BOLD), 5);
         this.library = library;
         this.fishes = GuideMenu.byCategory(library).getOrDefault(category, List.of());
-        this.caught = caught;
+        this.standings = standings;
         this.icons = icons;
         this.standing = standing;
     }
@@ -66,11 +66,11 @@ public final class CategoryMenu extends RoseGUI {
                 .displayName(Component.text("Back", NamedTextColor.YELLOW)
                         .decoration(TextDecoration.ITALIC, false))
                 .build()
-                .onClick(click -> new GuideMenu(player, library, caught, icons, standing).open()));
+                .onClick(click -> new GuideMenu(player, library, standings, icons, standing).open()));
     }
 
     private RoseItem fishIcon(Fish fish) {
-        FishStats mine = caught.getOrDefault(fish.id(), FishStats.none(fish.id()));
+        FishStats mine = standings.statsOf(fish.id());
         boolean found = mine.caught();
         boolean locked = fish.level() > standing.level();
         List<Component> lore = new ArrayList<>();

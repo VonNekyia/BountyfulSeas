@@ -2,6 +2,7 @@ package com.nekyia.bountyfulSeas.database;
 
 import com.nekyia.bountyfulSeas.stats.CatchOutcome;
 import com.nekyia.bountyfulSeas.stats.CatchStore;
+import com.nekyia.bountyfulSeas.stats.FishRecord;
 import com.nekyia.bountyfulSeas.stats.FishStats;
 import com.nekyia.bountyfulSeas.stats.PlayerTotal;
 import com.zaxxer.hikari.HikariConfig;
@@ -80,6 +81,44 @@ public final class HikariCatchStore implements CatchStore, AutoCloseable {
     private static final String SERVER_TOTAL_FOR_FISH = SERVER_TOTALS.replace(
             "FROM bs_player_fish GROUP BY fish_id",
             "FROM bs_player_fish WHERE fish_id = ? GROUP BY fish_id");
+
+    /**
+     * Who holds the record for every fish, in one pass.
+     *
+     * <p>A window function rather than a query per fish: the guide asks about a
+     * whole category at a time, and the alternative is a round trip each. Ties are
+     * settled by player id so the same name comes back every time rather than
+     * flickering between two people with identical catches.
+     */
+    private static final String RECORDS = """
+            SELECT fish_id, player, longest, anglers
+            FROM (
+                SELECT fish_id, player, longest,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY fish_id ORDER BY longest DESC, player ASC) AS seat,
+                       COUNT(*) OVER (PARTITION BY fish_id) AS anglers
+                FROM bs_player_fish
+                WHERE longest > 0
+            ) ranked
+            WHERE seat = 1
+            """;
+
+    /**
+     * Where one player stands on each fish.
+     *
+     * <p>RANK rather than ROW_NUMBER, so two players with the same longest share a
+     * place instead of one of them being arbitrarily ahead.
+     */
+    private static final String PLACES = """
+            SELECT fish_id, place
+            FROM (
+                SELECT fish_id, player,
+                       RANK() OVER (PARTITION BY fish_id ORDER BY longest DESC) AS place
+                FROM bs_player_fish
+                WHERE longest > 0
+            ) ranked
+            WHERE player = ?
+            """;
 
     private static final String TOP_BY_FISH = """
             SELECT player, catches, longest
@@ -239,6 +278,42 @@ public final class HikariCatchStore implements CatchStore, AutoCloseable {
             return readAll(statement);
         } catch (SQLException failure) {
             throw new IllegalStateException("could not read server stats", failure);
+        }
+    }
+
+    @Override
+    public Map<String, FishRecord> records() {
+        Map<String, FishRecord> records = new LinkedHashMap<>();
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(RECORDS);
+             ResultSet rows = statement.executeQuery()) {
+            while (rows.next()) {
+                String fishId = rows.getString("fish_id");
+                records.put(fishId, new FishRecord(fishId,
+                        UUID.fromString(rows.getString("player")),
+                        rows.getDouble("longest"),
+                        rows.getInt("anglers")));
+            }
+            return Map.copyOf(records);
+        } catch (SQLException failure) {
+            throw new IllegalStateException("could not read the records", failure);
+        }
+    }
+
+    @Override
+    public Map<String, Integer> placesOf(UUID player) {
+        Map<String, Integer> places = new LinkedHashMap<>();
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(PLACES)) {
+            statement.setString(1, player.toString());
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    places.put(rows.getString("fish_id"), rows.getInt("place"));
+                }
+            }
+            return Map.copyOf(places);
+        } catch (SQLException failure) {
+            throw new IllegalStateException("could not read the places for " + player, failure);
         }
     }
 
