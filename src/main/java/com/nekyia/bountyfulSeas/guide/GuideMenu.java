@@ -1,6 +1,7 @@
 package com.nekyia.bountyfulSeas.guide;
 
 import com.nekyia.bountyfulSeas.fish.Fish;
+import com.nekyia.bountyfulSeas.level.Progress;
 import com.nekyia.bountyfulSeas.stats.FishStats;
 import de.mcterranova.terranovaLib.roseGUI.RoseGUI;
 import de.mcterranova.terranovaLib.roseGUI.RoseItem;
@@ -35,17 +36,22 @@ public final class GuideMenu extends RoseGUI {
     private final Map<String, FishStats> caught;
     private final FishIcons icons;
 
-    /** The viewer's angling level, so a fish they cannot reach yet reads as locked. */
-    private final int anglerLevel;
+    /**
+     * Where the viewer stands.
+     *
+     * <p>Shown on the summary and used to grey out what they cannot reach yet. It
+     * is the only place a player sees their level at all - debug is for operators.
+     */
+    private final Progress standing;
 
     public GuideMenu(Player player, Collection<Fish> fishes,
-                     Map<String, FishStats> caught, FishIcons icons, int anglerLevel) {
+                     Map<String, FishStats> caught, FishIcons icons, Progress standing) {
         super(player, "bountyfulseas-guide",
                 Component.text("Fishing Guide", NamedTextColor.AQUA, TextDecoration.BOLD), 5);
         this.fishes = fishes;
         this.caught = caught;
         this.icons = icons;
-        this.anglerLevel = anglerLevel;
+        this.standing = standing;
     }
 
     @Override
@@ -78,7 +84,26 @@ public final class GuideMenu extends RoseGUI {
             addItem(CATEGORY_SLOTS[index++], categoryIcon(entry.getKey(), inCategory, found, catches));
         }
 
+        addItem(38, levelIcon());
         addItem(40, summaryIcon(allFound, allFish));
+    }
+
+    /** The way through to what each level opens up. */
+    private RoseItem levelIcon() {
+        Map<Integer, List<Fish>> levels = LevelMenu.byLevel(fishes);
+        long reached = levels.keySet().stream().filter(level -> level <= standing.level()).count();
+
+        return new RoseItem.Builder()
+                .material(Material.EXPERIENCE_BOTTLE)
+                .displayName(Component.text("Angling Levels", NamedTextColor.AQUA)
+                        .decoration(TextDecoration.ITALIC, false))
+                .addLore(GuideText.line("you are level " + standing.level(), NamedTextColor.GREEN),
+                        GuideText.line(reached + " of " + levels.size() + " unlock levels reached",
+                                NamedTextColor.GRAY),
+                        GuideText.blank(),
+                        GuideText.line("Click to see what opens where", NamedTextColor.YELLOW))
+                .build()
+                .onClick(click -> new LevelMenu(player, fishes, caught, icons, standing).open());
     }
 
     private RoseItem categoryIcon(String category, List<Fish> inCategory, long found, long catches) {
@@ -103,16 +128,32 @@ public final class GuideMenu extends RoseGUI {
                 .build();
 
         return item.onClick(click ->
-                new CategoryMenu(player, category, fishes, caught, icons, anglerLevel).open());
+                new CategoryMenu(player, category, fishes, caught, icons, standing).open());
     }
 
     private RoseItem summaryIcon(long found, long total) {
+        List<Component> lore = new ArrayList<>();
+        lore.add(GuideText.bar(found, total));
+        lore.add(GuideText.line(found + " of " + total + " fish discovered", NamedTextColor.GRAY));
+        lore.add(GuideText.blank());
+
+        lore.add(GuideText.line("Angling level " + standing.level(), NamedTextColor.GREEN));
+        if (standing.capped()) {
+            lore.add(GuideText.line("the highest there is", NamedTextColor.DARK_GRAY));
+        } else {
+            lore.add(GuideText.bar(standing.intoLevel(), standing.span()));
+            lore.add(GuideText.line(standing.intoLevel() + " / " + standing.span() + " xp"
+                    + "   " + standing.remaining() + " to go", NamedTextColor.DARK_GRAY));
+        }
+        lore.add(GuideText.line(standing.experience() + " xp earned in all", NamedTextColor.DARK_GRAY));
+        lore.add(GuideText.blank());
+        lore.add(GuideText.line("Milestones are what pay for levels", NamedTextColor.DARK_GRAY));
+
         return new RoseItem.Builder()
                 .material(Material.FISHING_ROD)
                 .displayName(Component.text("Your Collection", NamedTextColor.AQUA)
                         .decoration(TextDecoration.ITALIC, false))
-                .addLore(GuideText.bar(found, total),
-                        GuideText.line(found + " of " + total + " fish discovered", NamedTextColor.GRAY))
+                .addLore(lore.toArray(new Component[0]))
                 .build();
     }
 

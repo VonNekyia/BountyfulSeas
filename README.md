@@ -81,6 +81,16 @@ whole row set - a database call, and a bite has to be answered on the server
 thread - so the answer is held in memory, refreshed when a player joins and again
 after any catch that crosses a milestone.
 
+The guide is where a player sees any of this: **Your Collection** carries the
+level, the experience bar and what is still owed to the next one, and **Angling
+Levels** lists every level something is locked behind, in order, with what it
+opens and how far off it is. A catch nobody has made yet still reads `???` there,
+so a level is a reason to fish rather than a spoiler. `/bs debug` shows the same
+figures, but that one is for operators.
+
+Objects carry a level too: junk from the start, treasure once there is a reason
+to go looking for it.
+
 Without a database there are no counts, so there is no level either. The gate
 then stands open rather than locking every fish away forever, and the server log
 says so at startup.

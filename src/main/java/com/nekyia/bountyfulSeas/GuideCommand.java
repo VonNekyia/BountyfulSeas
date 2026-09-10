@@ -71,10 +71,10 @@ final class GuideCommand {
                     return;
                 }
                 if (category == null) {
-                    new GuideMenu(player, library, totals, ICONS, levels.levelOf(player.getUniqueId())).open();
+                    new GuideMenu(player, library, totals, ICONS, levels.progressOf(player.getUniqueId())).open();
                 } else {
                     new CategoryMenu(player, category.toLowerCase(java.util.Locale.ROOT),
-                            library, totals, ICONS, levels.levelOf(player.getUniqueId())).open();
+                            library, totals, ICONS, levels.progressOf(player.getUniqueId())).open();
                 }
             });
         });

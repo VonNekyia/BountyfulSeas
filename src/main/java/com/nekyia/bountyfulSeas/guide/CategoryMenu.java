@@ -1,6 +1,7 @@
 package com.nekyia.bountyfulSeas.guide;
 
 import com.nekyia.bountyfulSeas.fish.Fish;
+import com.nekyia.bountyfulSeas.level.Progress;
 import com.nekyia.bountyfulSeas.stats.FishStats;
 import de.mcterranova.terranovaLib.roseGUI.RoseGUI;
 import de.mcterranova.terranovaLib.roseGUI.RoseItem;
@@ -29,20 +30,20 @@ public final class CategoryMenu extends RoseGUI {
     private final List<Fish> fishes;
     private final Map<String, FishStats> caught;
     private final FishIcons icons;
-    private final int anglerLevel;
+    private final Progress standing;
 
     /** The whole library, kept so Back can rebuild the full overview. */
     private final Collection<Fish> library;
 
     public CategoryMenu(Player player, String category, Collection<Fish> library,
-                        Map<String, FishStats> caught, FishIcons icons, int anglerLevel) {
+                        Map<String, FishStats> caught, FishIcons icons, Progress standing) {
         super(player, "bountyfulseas-category",
                 Component.text(GuideText.readable(category), NamedTextColor.AQUA, TextDecoration.BOLD), 5);
         this.library = library;
         this.fishes = GuideMenu.byCategory(library).getOrDefault(category, List.of());
         this.caught = caught;
         this.icons = icons;
-        this.anglerLevel = anglerLevel;
+        this.standing = standing;
     }
 
     @Override
@@ -65,20 +66,20 @@ public final class CategoryMenu extends RoseGUI {
                 .displayName(Component.text("Back", NamedTextColor.YELLOW)
                         .decoration(TextDecoration.ITALIC, false))
                 .build()
-                .onClick(click -> new GuideMenu(player, library, caught, icons, anglerLevel).open()));
+                .onClick(click -> new GuideMenu(player, library, caught, icons, standing).open()));
     }
 
     private RoseItem fishIcon(Fish fish) {
         FishStats mine = caught.getOrDefault(fish.id(), FishStats.none(fish.id()));
         boolean found = mine.caught();
-        boolean locked = fish.level() > anglerLevel;
+        boolean locked = fish.level() > standing.level();
         List<Component> lore = new ArrayList<>();
 
         // Said first, because it is the reason nothing else on the icon has filled
         // in yet - and it is the one line that says what to go and do about it.
         if (locked) {
-            lore.add(GuideText.line("locked  needs angling level " + fish.level(),
-                    NamedTextColor.RED));
+            lore.add(GuideText.line("locked  needs angling level " + fish.level()
+                    + "   you are " + standing.level(), NamedTextColor.RED));
             lore.add(GuideText.blank());
         }
 
