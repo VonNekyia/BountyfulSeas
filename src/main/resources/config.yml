@@ -90,6 +90,10 @@ sizes:
   brackets:
     - label: "a record"
       chance: 0.000001
+    - label: "1 in 100000"
+      chance: 0.00001
+    - label: "1 in 10000"
+      chance: 0.0001
     - label: "1 in 1000"
       chance: 0.001
     - label: "top 1%"

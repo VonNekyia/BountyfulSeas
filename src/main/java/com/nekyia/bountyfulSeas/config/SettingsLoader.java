@@ -37,6 +37,8 @@ public final class SettingsLoader {
     /** Must stay in step with the {@code sizes.brackets} list in config.yml. */
     private static final List<Settings.SizeSettings.Bracket> DEFAULT_BRACKETS = List.of(
             new Settings.SizeSettings.Bracket("a record", 0.000001),
+            new Settings.SizeSettings.Bracket("1 in 100000", 0.00001),
+            new Settings.SizeSettings.Bracket("1 in 10000", 0.0001),
             new Settings.SizeSettings.Bracket("1 in 1000", 0.001),
             new Settings.SizeSettings.Bracket("top 1%", 0.01),
             new Settings.SizeSettings.Bracket("top 10%", 0.10),
