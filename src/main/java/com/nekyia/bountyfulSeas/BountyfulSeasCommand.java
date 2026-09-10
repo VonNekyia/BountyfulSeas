@@ -90,6 +90,15 @@ final class BountyfulSeasCommand implements BasicCommand {
         sender.sendMessage(usage());
     }
 
+    /** The subcommands this sender may run that start with what they have typed. */
+    private static List<String> allowed(CommandSender sender, String typed) {
+        String prefix = typed.toLowerCase(Locale.ROOT);
+        return SUBCOMMANDS.stream()
+                .filter(name -> name.startsWith(prefix))
+                .filter(name -> sender.hasPermission(permissionFor(name)))
+                .toList();
+    }
+
     private static boolean denied(CommandSender sender, String permission) {
         if (sender.hasPermission(permission)) {
             return false;
@@ -101,12 +110,15 @@ final class BountyfulSeasCommand implements BasicCommand {
     @Override
     public Collection<String> suggest(@NotNull CommandSourceStack source, @NotNull String[] args) {
         CommandSender sender = source.getSender();
+
+        // Nothing typed after the command yet. Brigadier hands over an empty array
+        // for that rather than one empty string, which is not what the old tab
+        // completion ever saw - it always got at least the partial word.
+        if (args.length == 0) {
+            return allowed(sender, "");
+        }
         if (args.length == 1) {
-            String typed = args[0].toLowerCase(Locale.ROOT);
-            return SUBCOMMANDS.stream()
-                    .filter(name -> name.startsWith(typed))
-                    .filter(name -> sender.hasPermission(permissionFor(name)))
-                    .toList();
+            return allowed(sender, args[0]);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase(GUIDE) && sender.hasPermission(GUIDE_PERMISSION)) {
             String typed = args[1].toLowerCase(Locale.ROOT);
