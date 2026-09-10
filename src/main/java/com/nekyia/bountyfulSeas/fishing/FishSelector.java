@@ -27,11 +27,17 @@ public final class FishSelector {
      *
      * <p>Exposed on its own because it answers "why did I not catch that here",
      * which is the question anyone debugging a fish table actually has.
+     *
+     * @param anglerLevel the level of whoever is fishing; higher fish stay out
      */
-    public static List<Fish> candidates(Collection<Fish> fishes, WaterConditions where) {
+    public static List<Fish> candidates(Collection<Fish> fishes, WaterConditions where,
+                                        int anglerLevel) {
         List<Fish> candidates = new ArrayList<>();
         for (Fish fish : fishes) {
-            if (matches(fish, where)) {
+            // The level gate sits with the other filters rather than after the roll:
+            // a fish nobody can catch yet must not take a tier's share of the odds
+            // and hand back nothing when it wins.
+            if (fish.level() <= anglerLevel && matches(fish, where)) {
                 candidates.add(fish);
             }
         }
@@ -45,8 +51,8 @@ public final class FishSelector {
      * reports and what the water actually gives cannot drift apart.
      */
     public static List<Chance> chances(Collection<Fish> fishes, WaterConditions where,
-                                       ToDoubleFunction<Rarity> chanceOf) {
-        List<Fish> candidates = candidates(fishes, where);
+                                       int anglerLevel, ToDoubleFunction<Rarity> chanceOf) {
+        List<Fish> candidates = candidates(fishes, where, anglerLevel);
         if (candidates.isEmpty()) {
             return List.of();
         }
@@ -98,9 +104,9 @@ public final class FishSelector {
      *
      * @param chanceOf the configured chance of a tier, by its config name
      */
-    public static Fish select(Collection<Fish> fishes, WaterConditions where,
+    public static Fish select(Collection<Fish> fishes, WaterConditions where, int anglerLevel,
                               ToDoubleFunction<Rarity> chanceOf, RandomGenerator random) {
-        List<Fish> candidates = candidates(fishes, where);
+        List<Fish> candidates = candidates(fishes, where, anglerLevel);
         if (candidates.isEmpty()) {
             return null;
         }

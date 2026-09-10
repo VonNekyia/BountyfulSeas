@@ -30,6 +30,11 @@ public enum Milestone {
         return required;
     }
 
+    /** Which step this is, counting from 1, for anything that pays by the step. */
+    public int step() {
+        return ordinal() + 1;
+    }
+
     /** The Roman numeral, which is simply the name. */
     public String numeral() {
         return name();

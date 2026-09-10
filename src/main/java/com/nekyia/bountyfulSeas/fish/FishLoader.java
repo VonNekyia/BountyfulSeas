@@ -33,6 +33,7 @@ public final class FishLoader {
     private static final String KEY_NAME = "fish_name";
     private static final String KEY_ITEM = "fish_item";
     private static final String KEY_MAX_LENGTH = "max_length";
+    private static final String KEY_LEVEL = "level";
     private static final String KEY_WATER_TYPE = "water_type";
     private static final String KEY_TERRAIN = "terrain";
     private static final String KEY_VEGETATION = "vegetation";
@@ -53,7 +54,7 @@ public final class FishLoader {
 
     private static final Set<String> KNOWN_KEYS = Set.of(
             KEY_NAME, KEY_ITEM,
-            KEY_MAX_LENGTH,
+            KEY_MAX_LENGTH, KEY_LEVEL,
             KEY_WATER_TYPE, KEY_TERRAIN, KEY_VEGETATION, KEY_DEPTH,
             KEY_MODIFIER, KEY_CONDITION,
             KEY_BAIT_LOCKED, KEY_SPAWN_WEIGHT, KEY_RARITY, KEY_ON_EAT, KEY_LORE);
@@ -67,6 +68,9 @@ public final class FishLoader {
     private static final Pattern ITEM_REFERENCE = Pattern.compile("[a-z0-9_.-]+:[a-zA-Z0-9_./-]+");
 
     private static final int DEFAULT_SPAWN_WEIGHT = 100;
+
+    /** Fish are catchable from the start unless a definition says otherwise. */
+    private static final int DEFAULT_LEVEL = 1;
 
     private FishLoader() {
     }
@@ -173,6 +177,10 @@ public final class FishLoader {
         List<String> lore = textList(file, id, section, problems);
 
         double maxLength = number(file, id, section, KEY_MAX_LENGTH, problems);
+        int level = whole(file, id, section, KEY_LEVEL, DEFAULT_LEVEL, problems);
+        if (level < DEFAULT_LEVEL) {
+            problems.add(FishProblem.fish(file, id, KEY_LEVEL + " cannot be below " + DEFAULT_LEVEL));
+        }
 
 
         Set<WaterType> waterTypes = enums(WaterType.class, file, id, section, KEY_WATER_TYPE, problems);
@@ -183,7 +191,10 @@ public final class FishLoader {
         Set<Condition> conditions = enums(Condition.class, file, id, section, KEY_CONDITION, problems);
 
         boolean baitLocked = flag(file, id, section, problems);
-        int spawnWeight = spawnWeight(file, id, section, problems);
+        int spawnWeight = whole(file, id, section, KEY_SPAWN_WEIGHT, DEFAULT_SPAWN_WEIGHT, problems);
+        if (spawnWeight < 0) {
+            problems.add(FishProblem.fish(file, id, KEY_SPAWN_WEIGHT + " must not be negative"));
+        }
         Rarity rarity = rarity(file, id, section, problems);
         if (rarity != null && rarity.suppressesSize() && maxLength > 0) {
             problems.add(FishProblem.fish(file, id, "is " + rarity.configName()
@@ -197,7 +208,7 @@ public final class FishLoader {
         }
 
         return new Fish(id, category, name, item, lore,
-                maxLength,
+                maxLength, level,
                 waterTypes, terrains, vegetations, depths, modifiers, conditions,
                 baitLocked, spawnWeight, rarity, onEat);
     }
@@ -389,17 +400,16 @@ public final class FishLoader {
         return value;
     }
 
-    private static int spawnWeight(String file, String id, ConfigurationSection section, List<FishProblem> problems) {
-        Object raw = section.get(KEY_SPAWN_WEIGHT);
+    /** A whole number, or the fallback when the setting is not there. */
+    private static int whole(String file, String id, ConfigurationSection section, String key,
+                             int fallback, List<FishProblem> problems) {
+        Object raw = section.get(key);
         if (raw == null) {
-            return DEFAULT_SPAWN_WEIGHT;
+            return fallback;
         }
         if (!(raw instanceof Integer value)) {
-            problems.add(FishProblem.fish(file, id, KEY_SPAWN_WEIGHT + " must be a whole number"));
-            return DEFAULT_SPAWN_WEIGHT;
-        }
-        if (value < 0) {
-            problems.add(FishProblem.fish(file, id, KEY_SPAWN_WEIGHT + " must not be negative"));
+            problems.add(FishProblem.fish(file, id, key + " must be a whole number"));
+            return fallback;
         }
         return value;
     }

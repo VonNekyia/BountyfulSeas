@@ -8,6 +8,7 @@ abyss_lantern:
   fish_item: "nexo:abyss_lantern"
 
   max_length: 122
+  level: 25
 
   water_type: [ocean, cave]
   depth: [deep]

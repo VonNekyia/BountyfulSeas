@@ -4,6 +4,9 @@ import com.nekyia.bountyfulSeas.api.CachedStats;
 import com.nekyia.bountyfulSeas.api.StatsApi;
 import com.nekyia.bountyfulSeas.database.DatabaseSettings;
 import com.nekyia.bountyfulSeas.enchantment.FishingEnchantments;
+import com.nekyia.bountyfulSeas.level.ExperienceRule;
+import com.nekyia.bountyfulSeas.level.LevelCurve;
+import com.nekyia.bountyfulSeas.level.Progress;
 import com.nekyia.bountyfulSeas.database.HikariCatchStore;
 import com.nekyia.bountyfulSeas.fish.Fish;
 import com.nekyia.bountyfulSeas.fish.Modifier;
@@ -58,6 +61,10 @@ public final class BountyfulSeas extends JavaPlugin {
     private StatsApi stats;
     private final Swarms swarms = new Swarms();
     private Settings settings;
+    private boolean catchesStored;
+    private final AnglerLevels levels = new AnglerLevels(
+            this::fish, this::stats, this::levelCurve, this::experienceRule,
+            () -> catchesStored);
 
     /**
      * Bukkit calls onLoad on every plugin before it enables any of them, which is
@@ -78,7 +85,7 @@ public final class BountyfulSeas extends JavaPlugin {
         loadWaterMap();
         getServer().getPluginManager().registerEvents(
                 new FishingListener(this::fish, this::waterMap, this::swarms,
-                        this::settings, this::recordCatch), this);
+                        this::settings, levels, this::recordCatch, this::loadLevel), this);
 
         registerCommand();
         reportEnchantments();
@@ -86,6 +93,31 @@ public final class BountyfulSeas extends JavaPlugin {
         publishWaterOverlay();
         rescanOnStart();
         getLogger().log(Level.INFO, "Ready with {0} fish.", fish.size());
+    }
+
+    /** The configured level curve, read fresh so a config reload is felt. */
+    private LevelCurve levelCurve() {
+        Settings.LevelSettings configured = settings.levels();
+        return new LevelCurve(configured.experienceBase(), configured.steepness(),
+                configured.maxLevel());
+    }
+
+    /** What a milestone pays, as configured. */
+    private ExperienceRule experienceRule() {
+        return new ExperienceRule(settings.levels().experiencePerStep());
+    }
+
+    /** Works out a joining player's level off the server thread. */
+    private void loadLevel(Player player) {
+        UUID id = player.getUniqueId();
+        getServer().getScheduler().runTaskAsynchronously(this, () -> {
+            try {
+                levels.refresh(id);
+            } catch (RuntimeException failure) {
+                getLogger().log(Level.WARNING, "Could not read the level of {0}: {1}",
+                        new Object[]{id, failure.getMessage()});
+            }
+        });
     }
 
     /**
@@ -114,9 +146,9 @@ public final class BountyfulSeas extends JavaPlugin {
      */
     private void registerCommand() {
         BountyfulSeasCommand command = new BountyfulSeasCommand(
-                new DebugCommand(this::fish, this::waterMap, this::swarms, this::settings),
+                new DebugCommand(this::fish, this::waterMap, this::swarms, this::settings, levels),
                 this::regenerateWaterMap,
-                new GuideCommand(this, this::fish, this::stats));
+                new GuideCommand(this, this::fish, this::stats, levels));
 
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event ->
                 event.registrar().register(ROOT_COMMAND, COMMAND_DESCRIPTION,
@@ -261,6 +293,7 @@ public final class BountyfulSeas extends JavaPlugin {
                     db.host(), db.port(), db.database(), db.username(), db.password());
             try {
                 catchStore = new HikariCatchStore(connection);
+                catchesStored = true;
                 getLogger().log(Level.INFO, "Catch statistics stored in {0}.", db.database());
             } catch (SQLException | RuntimeException failure) {
                 catchStore = CatchStores.none();
@@ -270,6 +303,14 @@ public final class BountyfulSeas extends JavaPlugin {
             }
         } else {
             getLogger().info("No database configured, so no catch statistics will be kept.");
+        }
+
+        if (!catchesStored) {
+            // Levels are worked out from the catch counts. With none kept, every
+            // player would sit at level one forever, which would lock away every
+            // fish above it rather than simply costing the numbers.
+            getLogger().warning("Without catch statistics there are no levels, "
+                    + "so every fish bites regardless of the level in its definition.");
         }
 
         stats = new CachedStats(catchStore, db.cacheDuration(), 512);
@@ -300,6 +341,12 @@ public final class BountyfulSeas extends JavaPlugin {
                 return;
             }
 
+            // Experience is derived from the totals, so a milestone does not add it -
+            // it simply changes what they add up to. Only worth rereading when one
+            // was actually crossed.
+            Progress before = levels.progressOf(player);
+            Progress after = earned == null ? before : levels.refresh(player);
+
             // Back to the main thread: the player may have logged off while the
             // write was in flight, and that has to be checked where it cannot change.
             getServer().getScheduler().runTask(this, () -> {
@@ -313,6 +360,9 @@ public final class BountyfulSeas extends JavaPlugin {
                 }
                 if (earned != null) {
                     online.sendMessage(CatchMessage.milestone(caught, earned, outcome.catches()));
+                }
+                if (after.level() > before.level()) {
+                    online.sendMessage(CatchMessage.levelUp(after));
                 }
             });
         });

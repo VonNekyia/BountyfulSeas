@@ -18,6 +18,7 @@ import java.util.Set;
  * @param item        the item this fish is handed out as, for example {@code nexo:my_fish}
  * @param lore        flavour text lines, shown under the category; possibly empty
  * @param maxLength   the most this fish ever reaches, in cm
+ * @param level       the angling level needed before this fish will bite at all
  * @param baitLocked  whether the fish can only be caught with a bait that names it
  * @param spawnWeight relative weight in the catch roll; 0 disables the fish
  * @param rarity      the rarity tier the fish is announced as
@@ -30,6 +31,7 @@ public record Fish(
         String item,
         List<String> lore,
         double maxLength,
+        int level,
         Set<WaterType> waterTypes,
         Set<Terrain> terrains,
         Set<Vegetation> vegetations,

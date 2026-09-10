@@ -2,6 +2,7 @@ package com.nekyia.bountyfulSeas;
 
 import com.nekyia.bountyfulSeas.fish.Fish;
 import com.nekyia.bountyfulSeas.fishing.Catch;
+import com.nekyia.bountyfulSeas.level.Progress;
 import com.nekyia.bountyfulSeas.stats.CatchOutcome;
 import com.nekyia.bountyfulSeas.stats.Milestone;
 import net.kyori.adventure.text.Component;
@@ -77,6 +78,24 @@ final class CatchMessage {
                 .append(Component.text("  ", NamedTextColor.DARK_GRAY))
                 .append(MiniMessage.miniMessage().deserialize(fish.name()))
                 .append(Component.text("  " + catches + " caught", NamedTextColor.DARK_GRAY));
+    }
+
+    /**
+     * The line shown when a milestone pushes a player up a level.
+     *
+     * <p>Says what the level opens rather than only what it is, because a number
+     * on its own does not tell anybody why they should care.
+     */
+    static Component levelUp(Progress reached) {
+        Component line = Component.text("⬆ ", NamedTextColor.GREEN)
+                .append(Component.text("Angling level ", NamedTextColor.GREEN))
+                .append(Component.text(reached.level(), NamedTextColor.GREEN, TextDecoration.BOLD));
+
+        if (reached.capped()) {
+            return line.append(Component.text("  the highest there is", NamedTextColor.DARK_GRAY));
+        }
+        return line.append(Component.text("  " + reached.remaining() + " xp to the next",
+                NamedTextColor.DARK_GRAY));
     }
 
     private static Component displayName(Catch landed, ItemStack stack) {

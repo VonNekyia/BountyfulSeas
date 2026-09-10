@@ -29,18 +29,20 @@ public final class CategoryMenu extends RoseGUI {
     private final List<Fish> fishes;
     private final Map<String, FishStats> caught;
     private final FishIcons icons;
+    private final int anglerLevel;
 
     /** The whole library, kept so Back can rebuild the full overview. */
     private final Collection<Fish> library;
 
     public CategoryMenu(Player player, String category, Collection<Fish> library,
-                        Map<String, FishStats> caught, FishIcons icons) {
+                        Map<String, FishStats> caught, FishIcons icons, int anglerLevel) {
         super(player, "bountyfulseas-category",
                 Component.text(GuideText.readable(category), NamedTextColor.AQUA, TextDecoration.BOLD), 5);
         this.library = library;
         this.fishes = GuideMenu.byCategory(library).getOrDefault(category, List.of());
         this.caught = caught;
         this.icons = icons;
+        this.anglerLevel = anglerLevel;
     }
 
     @Override
@@ -63,13 +65,22 @@ public final class CategoryMenu extends RoseGUI {
                 .displayName(Component.text("Back", NamedTextColor.YELLOW)
                         .decoration(TextDecoration.ITALIC, false))
                 .build()
-                .onClick(click -> new GuideMenu(player, library, caught, icons).open()));
+                .onClick(click -> new GuideMenu(player, library, caught, icons, anglerLevel).open()));
     }
 
     private RoseItem fishIcon(Fish fish) {
         FishStats mine = caught.getOrDefault(fish.id(), FishStats.none(fish.id()));
         boolean found = mine.caught();
+        boolean locked = fish.level() > anglerLevel;
         List<Component> lore = new ArrayList<>();
+
+        // Said first, because it is the reason nothing else on the icon has filled
+        // in yet - and it is the one line that says what to go and do about it.
+        if (locked) {
+            lore.add(GuideText.line("locked  needs angling level " + fish.level(),
+                    NamedTextColor.RED));
+            lore.add(GuideText.blank());
+        }
 
         if (found) {
             lore.add(GuideText.milestone(mine));
@@ -104,7 +115,7 @@ public final class CategoryMenu extends RoseGUI {
         Component name = found
                 ? MiniMessage.miniMessage().deserialize(fish.name())
                         .decoration(TextDecoration.ITALIC, false)
-                : Component.text("???", NamedTextColor.DARK_GRAY)
+                : Component.text(locked ? "Level " + fish.level() : "???", NamedTextColor.DARK_GRAY)
                         .decoration(TextDecoration.ITALIC, false);
 
         RoseItem.Builder builder = new RoseItem.Builder();
@@ -112,7 +123,7 @@ public final class CategoryMenu extends RoseGUI {
         if (icon != null) {
             builder.copyStack(icon);
         } else {
-            builder.material(found ? Material.COD : Material.GRAY_DYE);
+            builder.material(found ? Material.COD : locked ? Material.BARRIER : Material.GRAY_DYE);
         }
 
         return builder.displayName(name).addLore(lore.toArray(new Component[0])).build();

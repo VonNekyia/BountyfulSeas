@@ -18,6 +18,7 @@ import java.util.Map;
  * @param swarms        how swarming fish are distributed
  * @param rarityChances relative chance of each tier being rolled, by tier name
  * @param sizes         how rolled lengths are spread between nothing and the maximum
+ * @param levels        what a milestone is worth and what each level costs
  */
 public record Settings(
         String analyzer,
@@ -27,7 +28,8 @@ public record Settings(
         SwarmSettings swarms,
         Map<String, Double> rarityChances,
         EnchantmentSettings enchantments,
-        SizeSettings sizes
+        SizeSettings sizes,
+        LevelSettings levels
 ) {
 
     public Settings {
@@ -111,5 +113,17 @@ public record Settings(
      * @param oddsOfMax one catch in this many comes up at the maximum length
      */
     public record SizeSettings(double shape, double smallest, long oddsOfMax) {
+    }
+
+    /**
+     * The angling level.
+     *
+     * @param experiencePerStep experience for the first milestone of a level one fish
+     * @param experienceBase    experience the second level costs
+     * @param steepness         how sharply the cost of a level climbs
+     * @param maxLevel          the last level there is
+     */
+    public record LevelSettings(long experiencePerStep, long experienceBase,
+                                double steepness, int maxLevel) {
     }
 }

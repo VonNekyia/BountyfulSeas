@@ -36,11 +36,14 @@ final class GuideCommand {
     private final Plugin plugin;
     private final Supplier<FishLibrary> fish;
     private final Supplier<StatsApi> stats;
+    private final AnglerLevels levels;
 
-    GuideCommand(Plugin plugin, Supplier<FishLibrary> fish, Supplier<StatsApi> stats) {
+    GuideCommand(Plugin plugin, Supplier<FishLibrary> fish, Supplier<StatsApi> stats,
+                 AnglerLevels levels) {
         this.plugin = plugin;
         this.fish = fish;
         this.stats = stats;
+        this.levels = levels;
     }
 
     /** The overview, or one category when named. */
@@ -68,10 +71,10 @@ final class GuideCommand {
                     return;
                 }
                 if (category == null) {
-                    new GuideMenu(player, library, totals, ICONS).open();
+                    new GuideMenu(player, library, totals, ICONS, levels.levelOf(player.getUniqueId())).open();
                 } else {
                     new CategoryMenu(player, category.toLowerCase(java.util.Locale.ROOT),
-                            library, totals, ICONS).open();
+                            library, totals, ICONS, levels.levelOf(player.getUniqueId())).open();
                 }
             });
         });

@@ -22,6 +22,7 @@ public final class SettingsLoader {
     private static final int MAX_SWARMS = 500;
     private static final double MIN_SIZE_SHAPE = 0.1;
     private static final double MAX_SIZE_SMALLEST = 0.95;
+    private static final double MIN_STEEPNESS = 1.0;
     private static final long MIN_ROTATION_MINUTES = 1;
 
     /** Must stay in step with the {@code rarity-chances} block in config.yml. */
@@ -50,7 +51,38 @@ public final class SettingsLoader {
                 swarms(config, problems),
                 rarityChances(config, problems),
                 enchantments(config, problems),
-                sizes(config, problems));
+                sizes(config, problems),
+                levels(config, problems));
+    }
+
+    /** What a milestone pays and what a level costs. */
+    private static Settings.LevelSettings levels(FileConfiguration config, List<String> problems) {
+        long perStep = config.getLong("levels.experience-per-step", 25);
+        if (perStep < 0) {
+            problems.add("levels.experience-per-step was " + perStep
+                    + ", which cannot be negative; using 0");
+            perStep = 0;
+        }
+
+        long base = config.getLong("levels.experience-base", 100);
+        if (base < 1) {
+            problems.add("levels.experience-base was " + base + ", which cannot be below 1; using 1");
+            base = 1;
+        }
+
+        double steepness = config.getDouble("levels.steepness", 1.8);
+        if (steepness < MIN_STEEPNESS) {
+            problems.add("levels.steepness was " + steepness + ", which is below " + MIN_STEEPNESS
+                    + "; using " + MIN_STEEPNESS);
+            steepness = MIN_STEEPNESS;
+        }
+
+        int maxLevel = config.getInt("levels.max-level", 50);
+        if (maxLevel < 1) {
+            problems.add("levels.max-level was " + maxLevel + ", which cannot be below 1; using 1");
+            maxLevel = 1;
+        }
+        return new Settings.LevelSettings(perStep, base, steepness, maxLevel);
     }
 
     /**

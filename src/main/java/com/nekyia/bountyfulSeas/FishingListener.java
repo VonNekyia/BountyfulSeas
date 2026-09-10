@@ -12,13 +12,17 @@ import com.nekyia.bountyfulSeas.water.WaterMap;
 import com.nekyia.bountyfulSeas.water.WaterRegion;
 import org.bukkit.Location;
 import org.bukkit.entity.Item;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerFishEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -34,16 +38,37 @@ final class FishingListener implements Listener {
     private final Supplier<WaterMap> waterMap;
     private final Supplier<Swarms> swarms;
     private final Supplier<Settings> settings;
+    private final AnglerLevels levels;
     private final CatchRecorder recorder;
+    private final Consumer<Player> loadLevel;
 
     FishingListener(Supplier<FishLibrary> fish, Supplier<WaterMap> waterMap,
                     Supplier<Swarms> swarms, Supplier<Settings> settings,
-                    CatchRecorder recorder) {
+                    AnglerLevels levels, CatchRecorder recorder, Consumer<Player> loadLevel) {
         this.fish = fish;
         this.waterMap = waterMap;
         this.swarms = swarms;
         this.settings = settings;
+        this.levels = levels;
         this.recorder = recorder;
+        this.loadLevel = loadLevel;
+    }
+
+    /**
+     * Puts a joining player's level in memory before they can cast.
+     *
+     * <p>Here rather than in a listener of its own because this is the only thing
+     * that needs it: a bite is answered on the server thread, so the level has to
+     * be known by then rather than fetched at that moment.
+     */
+    @EventHandler(ignoreCancelled = true)
+    public void onJoin(PlayerJoinEvent event) {
+        loadLevel.accept(event.getPlayer());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onQuit(PlayerQuitEvent event) {
+        levels.forget(event.getPlayer().getUniqueId());
     }
 
     /**
@@ -90,6 +115,7 @@ final class FishingListener implements Listener {
 
         WaterSpot spot = WaterSpot.of(region, hook.getWorld(), swarms.get());
         Fish picked = FishSelector.select(fish.get().all(), spot,
+                levels.levelOf(event.getPlayer().getUniqueId()),
                 RodChances.of(event.getPlayer(), settings.get()), ThreadLocalRandom.current());
         if (picked == null) {
             return;

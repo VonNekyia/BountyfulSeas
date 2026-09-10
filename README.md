@@ -45,6 +45,46 @@ a legendary likelier in water that happens to hold three of them, which is the
 opposite of what a rarity is for. Water holding one legendary and water holding
 ten give it the same odds.
 
+### Angling level
+
+Every fish carries a `level` and does not bite until the angler has reached it -
+it is not merely rarer below that, it is out of the draw entirely, so it never
+takes a share of the odds it cannot pay out. The guide shows what is still locked
+and at what level it opens.
+
+Levels come from milestones. Each one a fish passes is worth
+
+```
+experience = experience-per-step  x  which milestone it is (1 to 10)
+                                  x  that fish's level
+```
+
+so a fish's tenth milestone pays ten times its first - it took a thousand catches
+rather than one - and a hard fish pays better than an easy one, which is the
+reason to go after what has just opened up instead of staying in the shallows.
+
+Reaching level *n* costs `experience-base x (n - 1) ^ steepness` in total. With
+the shipped numbers:
+
+| Level | total xp | | one fish, all ten milestones | xp |
+|---|---|---|---|---|
+| 2 | 100 | | a level 1 fish | 1 375 |
+| 5 | 1 213 | | a level 5 fish | 6 875 |
+| 10 | 5 220 | | a level 12 fish | 16 500 |
+| 25 | 30 506 | | a level 25 fish | 34 375 |
+| 50 | 110 243 | | | |
+
+**Nothing about the level is stored.** Experience is worked out from the catch
+counts that are already kept, so there is no second table, no extra write, and no
+way for the two to drift apart. The cost is that working it out reads a player's
+whole row set - a database call, and a bite has to be answered on the server
+thread - so the answer is held in memory, refreshed when a player joins and again
+after any catch that crosses a milestone.
+
+Without a database there are no counts, so there is no level either. The gate
+then stands open rather than locking every fish away forever, and the server log
+says so at startup.
+
 ### How big it is
 
 A fish definition gives one number, `max_length`. Everything below it comes from
@@ -157,6 +197,7 @@ herring:
 
   spawn_weight: 140
   rarity: uncommon
+  level: 1
 
   on_eat:
     saturation: 2
@@ -236,6 +277,7 @@ folder; override with `-PtestServerPluginFolder=<path>`.
 | `water` | nothing - reads `water_regions.bin` |
 | `nexo` | nothing - writes Nexo item YAML |
 | `pl3xmap` | nothing - draws map layers |
+| `level` | nothing - the experience curve and what a milestone pays |
 | `enchantment` | nothing - defines and registers the plugin's enchantments |
 | `fishing` | `fish` - picks the catch |
 | root | all of them - plugin lifecycle and wiring |

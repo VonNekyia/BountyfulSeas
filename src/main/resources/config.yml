@@ -83,6 +83,33 @@ sizes:
   # is the length hardly anyone ever sees.
   record-odds: 1000000
 
+# The angling level.
+#
+# Every fish carries a level in its definition and does not bite until the angler
+# has reached it - it is not simply rarer, it is not in the draw at all. Levels
+# come from milestones: each one a fish passes is worth
+#
+#   experience = experience-per-step  x  which milestone it is (1 to 10)
+#                                     x  that fish's level
+#
+# so a fish's tenth milestone pays ten times its first, and a hard fish pays
+# better than an easy one. Nothing is stored: the experience is worked out from
+# the catch counts, so it can never drift away from them.
+#
+# Without a database there are no counts, so there is no level either - the gate
+# then stands open rather than locking every fish away forever.
+levels:
+  # Experience for the first milestone of a level one fish.
+  experience-per-step: 25
+
+  # What the second level costs. Reaching level n costs
+  # experience-base x (n - 1) ^ steepness in total, so with these numbers level 2
+  # costs 100, level 10 costs 5290 and level 50 costs 114800.
+  experience-base: 100
+  steepness: 1.8
+
+  max-level: 50
+
 # How likely each tier is when something bites. The tier is drawn first, then an
 # entry from within it by spawn_weight - so the odds of a legendary do not change
 # just because a spot happens to hold three of them.

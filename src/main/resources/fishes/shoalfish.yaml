@@ -8,6 +8,7 @@ herring:
   fish_item: "nexo:herring"
 
   max_length: 46
+  level: 1
 
   water_type: [ocean]
   vegetation: [cold, temperate]
@@ -27,6 +28,7 @@ silver_shoal:
     - "Here today. Somewhere else by the next tide."
 
   max_length: 31
+  level: 1
 
   water_type: [ocean]
   modifier: [swarm]

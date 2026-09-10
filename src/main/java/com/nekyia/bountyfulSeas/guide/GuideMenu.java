@@ -35,13 +35,17 @@ public final class GuideMenu extends RoseGUI {
     private final Map<String, FishStats> caught;
     private final FishIcons icons;
 
+    /** The viewer's angling level, so a fish they cannot reach yet reads as locked. */
+    private final int anglerLevel;
+
     public GuideMenu(Player player, Collection<Fish> fishes,
-                     Map<String, FishStats> caught, FishIcons icons) {
+                     Map<String, FishStats> caught, FishIcons icons, int anglerLevel) {
         super(player, "bountyfulseas-guide",
                 Component.text("Fishing Guide", NamedTextColor.AQUA, TextDecoration.BOLD), 5);
         this.fishes = fishes;
         this.caught = caught;
         this.icons = icons;
+        this.anglerLevel = anglerLevel;
     }
 
     @Override
@@ -99,7 +103,7 @@ public final class GuideMenu extends RoseGUI {
                 .build();
 
         return item.onClick(click ->
-                new CategoryMenu(player, category, fishes, caught, icons).open());
+                new CategoryMenu(player, category, fishes, caught, icons, anglerLevel).open());
     }
 
     private RoseItem summaryIcon(long found, long total) {
