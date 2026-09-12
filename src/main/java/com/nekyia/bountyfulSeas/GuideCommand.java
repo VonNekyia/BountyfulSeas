@@ -58,7 +58,7 @@ final class GuideCommand {
 
     /** The overview, or one category when named. */
     void run(Player player, String category) {
-        Collection<Fish> library = byCommonness(fish.get().all());
+        Collection<Fish> library = byLevel(fish.get().all());
         if (library.isEmpty()) {
             player.sendMessage(Component.text("No fish are defined yet.", NamedTextColor.RED));
             return;
@@ -84,26 +84,28 @@ final class GuideCommand {
     }
 
     /**
-     * The library in the order a player meets it: commonest first.
+     * The library in the order a player meets it: by the level that opens it.
      *
      * <p>Sorted once, here, rather than in each screen. Every menu groups what it
      * is handed and keeps the order it arrives in, so one sort settles the fish
-     * inside a category and the categories themselves - a category leads with its
-     * commonest catch, and the one holding the commonest catch of all leads the
-     * overview.
+     * inside a category and the categories themselves - a category leads with the
+     * first of its fish to become catchable, and the one you can fish soonest
+     * leads the overview.
      *
-     * <p>Commonness is the configured tier chance first, then spawn weight inside
-     * the tier, which is the same order the roll itself works in. Ties fall back to
-     * the id so the guide does not reshuffle between openings.
+     * <p>Within a level, commonest first: the configured tier chance, then spawn
+     * weight inside the tier, which is the order the roll itself works in. Ties
+     * fall back to the id so the guide does not reshuffle between openings.
      */
-    private List<Fish> byCommonness(Collection<Fish> library) {
+    private List<Fish> byLevel(Collection<Fish> library) {
         Settings configured = settings.get();
-        Comparator<Fish> commonest = Comparator
-                .comparingDouble((Fish entry) -> chanceOf(configured, entry))
-                .thenComparingInt(Fish::spawnWeight)
-                .reversed()
+        Comparator<Fish> order = Comparator
+                .comparingInt(Fish::level)
+                .thenComparing(Comparator
+                        .comparingDouble((Fish entry) -> chanceOf(configured, entry))
+                        .thenComparingInt(Fish::spawnWeight)
+                        .reversed())
                 .thenComparing(Fish::id);
-        return library.stream().sorted(commonest).toList();
+        return library.stream().sorted(order).toList();
     }
 
     private static double chanceOf(Settings configured, Fish entry) {
