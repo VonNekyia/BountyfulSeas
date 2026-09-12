@@ -3,10 +3,14 @@ package com.nekyia.bountyfulSeas;
 import com.nekyia.bountyfulSeas.fish.Fish;
 import com.nekyia.bountyfulSeas.nexo.NexoItem;
 
+import com.nekyia.bountyfulSeas.fish.Rarity;
+
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.OptionalDouble;
 
 /**
@@ -23,6 +27,26 @@ final class FishNexoItems {
 
     /** Lore is italic purple by default in vanilla, so the tag turns that off. */
     private static final String CATEGORY_LORE = "<!italic><dark_gray>%s";
+
+    /** The tier, directly under the name, where a rarity is looked for. */
+    private static final String RARITY_LORE = "<!italic>%s%s";
+
+    /**
+     * What each tier is coloured, as MiniMessage.
+     *
+     * <p>A rarity is read at a glance or not at all, so the colour carries it and
+     * the word only confirms. Held here rather than on the tier itself: the fish
+     * package has no opinion about how anything looks.
+     */
+    private static final Map<Rarity, String> RARITY_COLOURS = new EnumMap<>(Map.of(
+            Rarity.UNCOMMON, "<gray>",
+            Rarity.RARE, "<aqua>",
+            Rarity.MISC, "<dark_gray>",
+            Rarity.EPIC, "<light_purple>",
+            Rarity.LEGENDARY, "<gold>",
+            Rarity.TREASURE, "<yellow>",
+            Rarity.MYTHIC, "<red>",
+            Rarity.SIGNATURE, "<dark_purple>"));
 
     /** Flavour text, kept italic and a shade lighter so it reads as prose, not data. */
     private static final String FLAVOUR_LORE = "<italic><gray>%s";
@@ -44,6 +68,11 @@ final class FishNexoItems {
         String id = nexoIdOf(fish.item());
         String displayName = fish.name();
         List<String> lore = new ArrayList<>();
+        if (fish.rarity() != null) {
+            lore.add(RARITY_LORE.formatted(
+                    RARITY_COLOURS.getOrDefault(fish.rarity(), "<gray>"),
+                    readable(fish.rarity().configName())));
+        }
         lore.add(CATEGORY_LORE.formatted(readable(fish.category())));
         for (String line : fish.lore()) {
             lore.add(FLAVOUR_LORE.formatted(line));
