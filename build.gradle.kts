@@ -26,17 +26,26 @@ val terranovaLibJar = testServerPluginFolder.map { folder ->
     folder.asFileTree.matching { include("TerranovaLib*.jar") }
 }
 
-// The water-analyzer executable, bundled into the jar when it has been built.
-// Override the folder with -PwaterAnalyzerDir=<path>. When it is not there the jar
-// ships without it and the plugin falls back to a path from config.yml, so this is
-// never a build requirement - and the binary is copied in, never committed.
-val analyzerBinary = providers.gradleProperty("waterAnalyzerDir")
+// The water-analyzer, one native build per platform, taken from wherever cargo put
+// each one. Override the cargo target folder with -PwaterAnalyzerDir=<path>.
+//
+// A platform that has not been built is simply left out, so none of this is ever
+// a build requirement; the plugin then falls back to a path from config.yml on
+// that platform. The binaries are copied in, never committed.
+//
+// Each is matched by its exact path rather than by name alone: target/release also
+// holds a copy of the Windows build without the .exe, and a name-only match would
+// happily ship that to Linux.
+val analyzerTarget = providers.gradleProperty("waterAnalyzerDir")
     .map { layout.projectDirectory.dir(it) }
-    .orElse(layout.projectDirectory.dir("../minecraft-water-map-generator/target/release"))
-    .map { folder ->
-        // Unanchored patterns match the folder itself only, not all of target/.
-        folder.asFileTree.matching { include("water-analyzer", "water-analyzer.exe") }
-    }
+    .orElse(layout.projectDirectory.dir("../minecraft-water-map-generator/target"))
+
+/** Where each platform's build lands in the jar, and where cargo leaves it. */
+val analyzerBuilds = mapOf(
+    "windows-x86_64" to ("release" to "water-analyzer.exe"),
+    "linux-x86_64" to ("x86_64-unknown-linux-musl/release" to "water-analyzer"),
+    "linux-aarch64" to ("aarch64-unknown-linux-musl/release" to "water-analyzer"),
+)
 
 dependencies {
     paperweight.paperDevBundle(libs.versions.paper.api.get())
@@ -98,8 +107,11 @@ tasks {
 
         // Only expanded in paper-plugin.yml above; a native binary must not be run
         // through the token filter or it comes out corrupted.
-        from(analyzerBinary) {
-            into("bin")
+        analyzerBuilds.forEach { (platform, build) ->
+            val (folder, file) = build
+            from(analyzerTarget.map { it.dir(folder).asFileTree.matching { include(file) } }) {
+                into("bin/$platform")
+            }
         }
     }
 }

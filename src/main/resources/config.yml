@@ -1,14 +1,15 @@
-﻿# BountyfulSeas
+# BountyfulSeas
 
 water-map:
   # Path to the water-analyzer executable.
   #
-  # Normally leave this empty. A copy is bundled in the plugin and unpacked to
-  # plugins/BountyfulSeas/bin on first use, so nothing has to be installed.
+  # Normally leave this empty. The plugin carries one build per platform and
+  # unpacks the one for this machine to plugins/BountyfulSeas/bin/<os>-<arch>
+  # on first use, so nothing has to be installed.
   #
-  # The bundled copy is a native binary and is built for one platform only - the
-  # one the jar was built on. Set a path here when running somewhere else, or to
-  # point at a newer build than the one shipped:
+  # Shipped today: windows-x86_64 and linux-x86_64 (static, so any distribution).
+  # Set a path here on anything else - an ARM server, a Mac - or to point at a
+  # newer build than the one shipped:
   #
   #   analyzer: "/opt/water-analyzer"
   analyzer: ""

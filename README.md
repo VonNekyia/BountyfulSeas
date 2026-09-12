@@ -305,8 +305,16 @@ definition asks for it.
 | `/bs debug [...]` | `bountyfulseas.debug` | Look at a fish table, and put it in a state worth looking at |
 | `/bs watermapregenerate` | `bountyfulseas.watermapregenerate` | Rescans the world, reloads the map and redraws the overlay |
 
-`/bs watermapregenerate` needs `water-map.analyzer` in `config.yml` pointing at the
-`water-analyzer` executable.
+`/bs watermapregenerate` runs the bundled `water-analyzer`. The jar carries a
+build for Windows x86_64 and a static one for Linux x86_64, and unpacks whichever
+matches the server; anywhere else, point `water-map.analyzer` in `config.yml` at a
+build for that machine. Building the Linux one from any host needs nothing beyond
+`rustup target add x86_64-unknown-linux-musl` - the generator repository's
+`.cargo/config.toml` points it at the linker Rust already ships:
+
+```bash
+cargo build --release --target x86_64-unknown-linux-musl
+```
 
 
 ### Records

@@ -21,9 +21,10 @@ import java.util.Locale;
  *   <li>the copy inside the plugin jar, unpacked into that same folder.</li>
  * </ol>
  *
- * <p>The bundled copy is native and therefore built for one platform. The jar is
- * built on Windows here, so a Linux server finds nothing to unpack and falls back
- * to the configured path - which is why that setting stays.
+ * <p>The bundled copies are native, one per platform, kept apart in the jar as
+ * {@code bin/<os>-<arch>/}. Each server unpacks only its own. A platform nobody
+ * built for finds nothing and falls back to the configured path, which is why that
+ * setting stays.
  */
 final class AnalyzerBinary {
 
@@ -47,7 +48,10 @@ final class AnalyzerBinary {
                     + ", which is not there; looking for a bundled copy instead");
         }
 
-        Path unpacked = plugin.getDataFolder().toPath().resolve(FOLDER).resolve(fileName());
+        // Unpacked into a folder named for the platform, so a data folder carried from
+        // one machine to another never runs the other machine's build.
+        Path unpacked = plugin.getDataFolder().toPath()
+                .resolve(FOLDER).resolve(platform()).resolve(fileName());
         if (Files.isRegularFile(unpacked)) {
             return unpacked;
         }
@@ -61,10 +65,12 @@ final class AnalyzerBinary {
      * there. A jar built without one simply has nothing to unpack.
      */
     private static Path unpack(Plugin plugin, Path target) {
-        String resource = FOLDER + "/" + fileName();
+        String resource = FOLDER + "/" + platform() + "/" + fileName();
 
         try (InputStream bundled = plugin.getResource(resource)) {
             if (bundled == null) {
+                plugin.getLogger().info("No water analyzer is bundled for " + platform()
+                        + "; set water-map.analyzer to use one built for this machine.");
                 return null;
             }
 
@@ -87,6 +93,29 @@ final class AnalyzerBinary {
 
     private static String fileName() {
         return isWindows() ? "water-analyzer.exe" : "water-analyzer";
+    }
+
+    /**
+     * This machine as the jar names it, such as {@code linux-x86_64}.
+     *
+     * <p>The JVM reports architectures under several names for the same thing -
+     * {@code amd64} on Linux where Windows says {@code x86_64}, {@code arm64} on a
+     * Mac for what Linux calls {@code aarch64} - so they are folded into the names
+     * cargo uses.
+     */
+    static String platform() {
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        String system = os.contains("win") ? "windows"
+                : os.contains("mac") || os.contains("darwin") ? "macos"
+                : "linux";
+
+        String arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
+        String machine = switch (arch) {
+            case "amd64", "x86_64", "x64" -> "x86_64";
+            case "aarch64", "arm64" -> "aarch64";
+            default -> arch;
+        };
+        return system + "-" + machine;
     }
 
     private static boolean isWindows() {
