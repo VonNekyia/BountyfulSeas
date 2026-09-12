@@ -1,6 +1,7 @@
 package com.nekyia.bountyfulSeas;
 
 import com.nekyia.bountyfulSeas.api.StatsApi;
+import com.nekyia.bountyfulSeas.config.Settings;
 import com.nekyia.bountyfulSeas.fish.Fish;
 import com.nekyia.bountyfulSeas.fish.FishLibrary;
 import com.nekyia.bountyfulSeas.guide.CategoryMenu;
@@ -17,6 +18,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -42,19 +44,21 @@ final class GuideCommand {
     private final Plugin plugin;
     private final Supplier<FishLibrary> fish;
     private final Supplier<StatsApi> stats;
+    private final Supplier<Settings> settings;
     private final AnglerLevels levels;
 
     GuideCommand(Plugin plugin, Supplier<FishLibrary> fish, Supplier<StatsApi> stats,
-                 AnglerLevels levels) {
+                 Supplier<Settings> settings, AnglerLevels levels) {
         this.plugin = plugin;
         this.fish = fish;
         this.stats = stats;
+        this.settings = settings;
         this.levels = levels;
     }
 
     /** The overview, or one category when named. */
     void run(Player player, String category) {
-        Collection<Fish> library = fish.get().all();
+        Collection<Fish> library = byCommonness(fish.get().all());
         if (library.isEmpty()) {
             player.sendMessage(Component.text("No fish are defined yet.", NamedTextColor.RED));
             return;
@@ -77,6 +81,33 @@ final class GuideCommand {
                 }
             });
         });
+    }
+
+    /**
+     * The library in the order a player meets it: commonest first.
+     *
+     * <p>Sorted once, here, rather than in each screen. Every menu groups what it
+     * is handed and keeps the order it arrives in, so one sort settles the fish
+     * inside a category and the categories themselves - a category leads with its
+     * commonest catch, and the one holding the commonest catch of all leads the
+     * overview.
+     *
+     * <p>Commonness is the configured tier chance first, then spawn weight inside
+     * the tier, which is the same order the roll itself works in. Ties fall back to
+     * the id so the guide does not reshuffle between openings.
+     */
+    private List<Fish> byCommonness(Collection<Fish> library) {
+        Settings configured = settings.get();
+        Comparator<Fish> commonest = Comparator
+                .comparingDouble((Fish entry) -> chanceOf(configured, entry))
+                .thenComparingInt(Fish::spawnWeight)
+                .reversed()
+                .thenComparing(Fish::id);
+        return library.stream().sorted(commonest).toList();
+    }
+
+    private static double chanceOf(Settings configured, Fish entry) {
+        return entry.rarity() == null ? 0 : configured.chanceOf(entry.rarity().configName());
     }
 
     /**

@@ -167,7 +167,7 @@ public final class BountyfulSeas extends JavaPlugin {
                         this::tierKinds, this::setCatches, levels, forced,
                         task -> getServer().getScheduler().runTaskAsynchronously(this, task)),
                 this::regenerateWaterMap,
-                new GuideCommand(this, this::fish, this::stats, levels));
+                new GuideCommand(this, this::fish, this::stats, this::settings, levels));
 
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event ->
                 event.registrar().register(ROOT_COMMAND, COMMAND_DESCRIPTION,
