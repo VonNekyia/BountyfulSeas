@@ -526,13 +526,24 @@ public final class BountyfulSeas extends JavaPlugin {
      * register it here.
      */
     private void saveDefaultCategories() {
+        Path dataFolder = getDataFolder().toPath();
         try (JarFile jar = new JarFile(getFile())) {
-            jar.stream()
+            // Checked here rather than left to saveResource: it would refuse the same
+            // way, but it logs a warning for every file it refuses, which on every
+            // start is one line per category for nothing having gone wrong.
+            List<String> missing = jar.stream()
                     .filter(entry -> !entry.isDirectory())
                     .map(JarEntry::getName)
                     .filter(name -> name.startsWith(FISH_FOLDER + "/"))
                     .filter(name -> name.endsWith(".yaml") || name.endsWith(".yml"))
-                    .forEach(name -> saveResource(name, false));
+                    .filter(name -> !Files.exists(dataFolder.resolve(name)))
+                    .toList();
+
+            missing.forEach(name -> saveResource(name, false));
+            if (!missing.isEmpty()) {
+                getLogger().log(Level.INFO, "Wrote {0} fish categories that were not there yet.",
+                        missing.size());
+            }
         } catch (IOException exception) {
             getLogger().log(Level.WARNING, "Could not write the example fish categories: {0}",
                     exception.getMessage());
