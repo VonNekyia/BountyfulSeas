@@ -6,6 +6,9 @@
 #
 # fish_id:
 #   fish_name: ""              # required, MiniMessage
+#   # Below legendary the formatting is stripped and the name is coloured by
+#   # its tier, so every fish of a tier reads the same. Only legendaries keep
+#   # what is written here - give them a <gradient:#rrggbb:#rrggbb>.
 #   fish_item: "nexo:item"     # required, namespaced
 #   lore:                      # optional flavour text, italic light grey
 #     - "A line of flavour text."

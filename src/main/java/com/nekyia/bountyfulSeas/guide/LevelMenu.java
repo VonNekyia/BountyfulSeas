@@ -7,7 +7,6 @@ import de.mcterranova.terranovaLib.roseGUI.RoseItem;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryOpenEvent;
@@ -96,7 +95,7 @@ public final class LevelMenu extends RoseGUI {
         for (Fish fish : opens) {
             boolean found = standings.statsOf(fish.id()).caught();
             Component name = found
-                    ? MiniMessage.miniMessage().deserialize(fish.name())
+                    ? FishNames.of(fish)
                     : Component.text("???", NamedTextColor.DARK_GRAY);
             lore.add(Component.text("  ", NamedTextColor.DARK_GRAY)
                     .append(name)

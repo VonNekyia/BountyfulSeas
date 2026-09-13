@@ -2,6 +2,7 @@ package com.nekyia.bountyfulSeas;
 
 import com.nekyia.bountyfulSeas.fish.Fish;
 import com.nekyia.bountyfulSeas.fishing.Catch;
+import com.nekyia.bountyfulSeas.guide.FishNames;
 import com.nekyia.bountyfulSeas.level.Progress;
 import com.nekyia.bountyfulSeas.stats.CatchOutcome;
 import com.nekyia.bountyfulSeas.stats.Milestone;
@@ -59,7 +60,7 @@ final class CatchMessage {
         return Component.text("★ ", accent)
                 .append(Component.text(title, accent, TextDecoration.BOLD))
                 .append(Component.text("  ", NamedTextColor.DARK_GRAY))
-                .append(MiniMessage.miniMessage().deserialize(fish.name()))
+                .append(FishNames.of(fish))
                 .append(SEPARATOR)
                 .append(Component.text(format(length) + " cm", NamedTextColor.WHITE))
                 .append(Component.text("  beats " + format(beaten) + " cm", NamedTextColor.DARK_GRAY));
@@ -76,7 +77,7 @@ final class CatchMessage {
                 .append(Component.text("Milestone ", NamedTextColor.YELLOW))
                 .append(Component.text(earned.numeral(), NamedTextColor.GOLD, TextDecoration.BOLD))
                 .append(Component.text("  ", NamedTextColor.DARK_GRAY))
-                .append(MiniMessage.miniMessage().deserialize(fish.name()))
+                .append(FishNames.of(fish))
                 .append(Component.text("  " + catches + " caught", NamedTextColor.DARK_GRAY));
     }
 
@@ -105,7 +106,7 @@ final class CatchMessage {
                 return name;
             }
         }
-        return MiniMessage.miniMessage().deserialize(landed.fish().name());
+        return FishNames.of(landed.fish());
     }
 
     /** Two decimals, dot separator, so the number reads the same in every locale. */
