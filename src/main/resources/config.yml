@@ -123,24 +123,30 @@ levels:
   # it, so with 10 a fish pays 10, 20, 30 and so on up to 100 for its tenth.
   experience-per-step: 10
 
-  # What a level costs is not set here. It is a share of what the fish already open
-  # are worth, so adding a fish to a category raises every later level by itself and
-  # the last level is simply the highest one any fish is locked behind.
+  # What a level costs is not set here. Each anchor below prices one level off the
+  # roster: completion is how much of what is already open you have to have worked
+  # through, and completed-at-milestone is what counts as having finished a fish.
+  # Adding a fish to a category therefore raises every anchor above it by itself,
+  # and the last level is simply the highest one any fish is locked behind.
   #
-  # Each band below covers an equal slice of the levels there are, lowest first -
-  # three bands over fifteen levels is five levels each. completed-at-milestone is
-  # what counts as having finished a fish, and completion is how much of that you
-  # have to have earned across everything open before the next level.
+  # The levels between two anchors are smoothed - each step a little larger than the
+  # one before - rather than priced the same way, so the climb does not jump about
+  # with wherever the fish happen to land.
   #
-  # Milestones are paid flat but cost exponentially, so this number is the one that
-  # decides whether the curve is playable: the fourth milestone is twenty catches,
-  # the sixth a hundred, the tenth a thousand.
-  bands:
-    - completed-at-milestone: 4
+  # Milestones are paid flat but cost exponentially, so the milestone is the number
+  # that decides whether the curve is playable: the fourth is twenty catches, the
+  # sixth a hundred, the tenth a thousand.
+  anchors:
+    - level: 5
+      completed-at-milestone: 4
       completion: 0.60
-    - completed-at-milestone: 5
-      completion: 0.60
-    - completed-at-milestone: 6
+    # Seventy rather than sixty: at sixty this anchor lands exactly where the pace
+    # set by the one below already arrives, so levels 6 to 10 come out flat.
+    - level: 10
+      completed-at-milestone: 5
+      completion: 0.70
+    - level: 15
+      completed-at-milestone: 6
       completion: 0.80
 
 # The two sides of the table.

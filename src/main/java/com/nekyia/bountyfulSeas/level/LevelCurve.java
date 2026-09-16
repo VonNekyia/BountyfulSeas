@@ -1,18 +1,24 @@
 package com.nekyia.bountyfulSeas.level;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * How much experience each level costs, worked out from the roster itself.
  *
- * <pre>  to reach level n: share · (what one finished fish pays) · (fish open below n)  </pre>
+ * <p>Every fifth level or so is anchored to what the roster is worth there: a share
+ * of what one finished fish pays, times the fish open below it. The levels between
+ * two anchors are smoothed, each step a little larger than the one before and the
+ * first no larger than the last step before it, so the climb is felt as a climb
+ * rather than as a wall at whichever level a band happened to begin.
  *
  * <p>Nothing here is tuned by hand. The last level is the highest level any fish is
- * locked behind, and every threshold is a share of what the fish already open are
- * worth - so a fish added to a category, or moved to another level, moves the curve
- * with it and there is nothing left to keep in step.
+ * locked behind, and a fish added to a category or moved between levels retunes the
+ * curve by itself.
  *
  * <p>Held as a table rather than a formula because the shape is not a formula: it
- * bends wherever the roster does, and each band asks a larger share of a longer
- * fish than the one below it.
+ * bends wherever the anchors do. Every threshold sits on a multiple of what a
+ * milestone pays, because that is the only kind of number a player can stand on.
  */
 public final class LevelCurve {
 
@@ -49,15 +55,79 @@ public final class LevelCurve {
         }
 
         long[] thresholds = new long[maxLevel + 1];
+        long total = 0;
+        double step = 0;
+        int at = FIRST_LEVEL;
+
+        for (CompletionRule.Anchor anchor : anchorsUpTo(demand, maxLevel)) {
+            int span = anchor.level() - at;
+            if (span <= 0) {
+                continue;
+            }
+            long target = Math.max(total, onGrid(
+                    anchor.share() * rule.upTo(anchor.completedAtStep()) * open[anchor.level() - 1],
+                    rule.perStep()));
+
+            // Steps grow by a fixed amount each level, starting from the last step
+            // taken, and have to add up to exactly what the anchor asks. Where that
+            // would mean shrinking steps - an anchor cheaper than the pace already
+            // set - the span is split evenly instead, which is the flattest honest
+            // answer and still lands on the anchor.
+            long gain = target - total;
+            double growth = 2 * (gain - span * step) / ((double) span * (span + 1));
+            if (growth < 0) {
+                step = (double) gain / span;
+                growth = 0;
+            }
+
+            double running = total;
+            for (int level = at + 1; level <= anchor.level(); level++) {
+                step += growth;
+                running += step;
+                thresholds[level] = onGrid(running, rule.perStep());
+            }
+            // The anchor is the number that matters; rounding must not drift off it.
+            thresholds[anchor.level()] = target;
+            total = target;
+            at = anchor.level();
+        }
+
         for (int level = FIRST_LEVEL + 1; level <= maxLevel; level++) {
-            CompletionRule.Band band = demand.bandFor(level, maxLevel);
-            long finished = rule.upTo(band.completedAtStep());
-            thresholds[level] = Math.round(band.share() * finished * open[level - 1]);
-            // A level that opened nothing new, or a share that fell, must still not
-            // make the next level cheaper than the one already passed.
             thresholds[level] = Math.max(thresholds[level], thresholds[level - 1]);
         }
         return new LevelCurve(thresholds);
+    }
+
+    /**
+     * The nearest experience a player can actually stand on.
+     *
+     * <p>Every milestone pays a multiple of the step, so every total anybody can
+     * hold is one too. A threshold of 108 would really be 110: the bar would never
+     * fill, it would jump past. Snapping says what is meant.
+     */
+    private static long onGrid(double experience, long perStep) {
+        if (perStep <= 0) {
+            return Math.round(experience);
+        }
+        return Math.round(experience / perStep) * perStep;
+    }
+
+    /**
+     * The anchors that fall inside the roster, with the last one carried up to the
+     * top level if the roster reaches past everything configured.
+     */
+    private static List<CompletionRule.Anchor> anchorsUpTo(CompletionRule demand, int maxLevel) {
+        List<CompletionRule.Anchor> kept = new ArrayList<>();
+        for (CompletionRule.Anchor anchor : demand.anchors()) {
+            if (anchor.level() > FIRST_LEVEL && anchor.level() < maxLevel) {
+                kept.add(anchor);
+            }
+        }
+        if (maxLevel > FIRST_LEVEL) {
+            CompletionRule.Anchor top = demand.last();
+            kept.add(new CompletionRule.Anchor(maxLevel, top.completedAtStep(), top.share()));
+        }
+        return kept;
     }
 
     /** The last level there is, which is the highest any fish is locked behind. */

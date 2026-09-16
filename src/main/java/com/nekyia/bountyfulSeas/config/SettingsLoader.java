@@ -1,6 +1,7 @@
 package com.nekyia.bountyfulSeas.config;
 
 import com.nekyia.bountyfulSeas.level.CompletionRule;
+import com.nekyia.bountyfulSeas.level.LevelCurve;
 import com.nekyia.bountyfulSeas.stats.Milestone;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -114,11 +115,11 @@ public final class SettingsLoader {
         return names;
     }
 
-    /** Milestone four, five and six across the levels - the curve the plugin ships. */
-    private static final CompletionRule DEFAULT_BANDS = new CompletionRule(List.of(
-            new CompletionRule.Band(4, 0.60),
-            new CompletionRule.Band(5, 0.60),
-            new CompletionRule.Band(6, 0.80)));
+    /** Milestone four, five and six up the levels - the curve the plugin ships. */
+    private static final CompletionRule DEFAULT_ANCHORS = new CompletionRule(List.of(
+            new CompletionRule.Anchor(5, 4, 0.60),
+            new CompletionRule.Anchor(10, 5, 0.60),
+            new CompletionRule.Anchor(15, 6, 0.80)));
 
     /** What a milestone pays, and what share of it a level asks for. */
     private static Settings.LevelSettings levels(FileConfiguration config, List<String> problems) {
@@ -129,47 +130,54 @@ public final class SettingsLoader {
             perStep = 0;
         }
 
-        return new Settings.LevelSettings(perStep, bands(config, problems));
+        return new Settings.LevelSettings(perStep, anchors(config, problems));
     }
 
     /**
-     * The bands the levels are split into, lowest first.
+     * The levels that are priced off the roster, lowest first.
      *
-     * <p>A band that cannot be read is skipped rather than guessed at, and if that
-     * leaves none the shipped three stand in: a curve with no bands has no
+     * <p>An anchor that cannot be read is skipped rather than guessed at, and if
+     * that leaves none the shipped three stand in: a curve with no anchors has no
      * thresholds, which would hand everyone the last level.
      */
-    private static CompletionRule bands(FileConfiguration config, List<String> problems) {
-        List<CompletionRule.Band> bands = new ArrayList<>();
-        List<Map<?, ?>> listed = config.getMapList("levels.bands");
+    private static CompletionRule anchors(FileConfiguration config, List<String> problems) {
+        List<CompletionRule.Anchor> anchors = new ArrayList<>();
+        List<Map<?, ?>> listed = config.getMapList("levels.anchors");
         for (int index = 0; index < listed.size(); index++) {
             Map<?, ?> entry = listed.get(index);
-            String where = "levels.bands[" + index + "]";
+            String where = "levels.anchors[" + index + "]";
+
+            int level = number(entry.get("level"), 0).intValue();
+            if (level <= LevelCurve.FIRST_LEVEL) {
+                problems.add(where + ".level was " + entry.get("level") + ", which is not a level"
+                        + " above " + LevelCurve.FIRST_LEVEL + "; skipping the anchor");
+                continue;
+            }
 
             int step = number(entry.get("completed-at-milestone"), 0).intValue();
             if (step < 1 || step > Milestone.values().length) {
                 problems.add(where + ".completed-at-milestone was " + entry.get("completed-at-milestone")
                         + ", which is not a milestone between 1 and " + Milestone.values().length
-                        + "; skipping the band");
+                        + "; skipping the anchor");
                 continue;
             }
 
             double share = number(entry.get("completion"), 0).doubleValue();
             if (share <= 0 || share > 1) {
                 problems.add(where + ".completion was " + entry.get("completion")
-                        + ", which is not a share between 0 and 1; skipping the band");
+                        + ", which is not a share between 0 and 1; skipping the anchor");
                 continue;
             }
-            bands.add(new CompletionRule.Band(step, share));
+            anchors.add(new CompletionRule.Anchor(level, step, share));
         }
 
-        if (bands.isEmpty()) {
+        if (anchors.isEmpty()) {
             if (!listed.isEmpty()) {
-                problems.add("levels.bands left nothing usable; using the shipped bands");
+                problems.add("levels.anchors left nothing usable; using the shipped anchors");
             }
-            return DEFAULT_BANDS;
+            return DEFAULT_ANCHORS;
         }
-        return new CompletionRule(bands);
+        return new CompletionRule(anchors);
     }
 
     /** A config number, whatever numeric type it was written as. */

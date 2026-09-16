@@ -1,48 +1,49 @@
 package com.nekyia.bountyfulSeas.level;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
- * How much of what is already open has to be worked through before the next level.
+ * How much of what is already open has to be worked through, at fixed points.
  *
- * <p>A level's cost is not a number somebody picked. It is a share of what every
- * fish unlocked so far is worth, so adding a fish to the roster raises every later
- * level by itself and nothing has to be retuned by hand.
+ * <p>An anchor prices one level off the roster: a share of what every fish unlocked
+ * below it is worth. Adding a fish raises every anchor above it by itself, which is
+ * why no level cost is written down anywhere.
  *
- * <p>What counts as having finished a fish climbs as the levels do, in bands that
- * split the levels there are into equal slices. That is the number that decides
- * whether the whole thing is playable: milestones are paid flat but cost
- * exponentially - the tenth takes a thousand catches - so measuring completion
- * against all ten would put level 2 at five hundred catches of every starter fish.
+ * <p>Only every fifth level or so is anchored. The levels in between are smoothed
+ * between the anchors rather than priced the same way, because pricing each one off
+ * the roster made the steps jump about with wherever the fish happened to land -
+ * one level costing 270 and the next 810 says nothing to a player.
  *
- * <p>Equal slices rather than fixed level numbers, so the bands follow the roster
- * too. Three bands over fifteen levels is five levels each; grow the roster to
- * eighteen and it becomes six, with nothing to edit.
+ * <p>What counts as a finished fish climbs from anchor to anchor. That number is
+ * what decides whether the curve is playable: milestones are paid flat but cost
+ * exponentially, so the fourth is twenty catches, the sixth a hundred and the tenth
+ * a thousand.
  */
-public record CompletionRule(List<Band> bands) {
+public record CompletionRule(List<Anchor> anchors) {
 
     /**
-     * One slice of the levels, and what it asks for.
+     * One priced level.
      *
+     * @param level           the level this prices
      * @param completedAtStep the milestone at which a fish counts as done
-     * @param share           the fraction of that to have earned before the next level
+     * @param share           the fraction of that to have earned across what is open
      */
-    public record Band(int completedAtStep, double share) {
+    public record Anchor(int level, int completedAtStep, double share) {
     }
 
     public CompletionRule {
-        bands = List.copyOf(bands);
-        if (bands.isEmpty()) {
-            throw new IllegalArgumentException("a level curve needs at least one band");
+        if (anchors.isEmpty()) {
+            throw new IllegalArgumentException("a level curve needs at least one anchor");
         }
+        List<Anchor> sorted = new ArrayList<>(anchors);
+        sorted.sort(Comparator.comparingInt(Anchor::level));
+        anchors = List.copyOf(sorted);
     }
 
-    /** The band a level falls in, given where the roster ends. */
-    public Band bandFor(int level, int maxLevel) {
-        if (maxLevel <= LevelCurve.FIRST_LEVEL) {
-            return bands.get(0);
-        }
-        int slice = (int) ((long) (level - LevelCurve.FIRST_LEVEL) * bands.size() / maxLevel);
-        return bands.get(Math.clamp(slice, 0, bands.size() - 1));
+    /** The last anchor, whose terms carry on past it if the roster reaches further. */
+    public Anchor last() {
+        return anchors.get(anchors.size() - 1);
     }
 }

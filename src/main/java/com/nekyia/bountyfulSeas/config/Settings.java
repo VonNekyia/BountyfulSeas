@@ -143,7 +143,7 @@ public record Settings(
      * somebody has to remember to raise.
      *
      * @param experiencePerStep experience for the first milestone of any fish
-     * @param completion        how much of what is open a level asks for
+     * @param completion        the levels priced off the roster, and how
      */
     public record LevelSettings(long experiencePerStep, CompletionRule completion) {
     }
