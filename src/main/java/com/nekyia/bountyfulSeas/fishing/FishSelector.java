@@ -45,6 +45,25 @@ public final class FishSelector {
     }
 
     /**
+     * Fish that live here but sit above the angler's level.
+     *
+     * <p>The other half of the candidate list, and the other half of "why did I not
+     * catch that here": the fish is not missing, it is simply not yet theirs. Sorted
+     * by the level that opens it, because that is the answer.
+     */
+    public static List<Fish> outOfReach(Collection<Fish> fishes, WaterConditions where,
+                                        int anglerLevel) {
+        List<Fish> locked = new ArrayList<>();
+        for (Fish fish : fishes) {
+            if (fish.level() > anglerLevel && matches(fish, where)) {
+                locked.add(fish);
+            }
+        }
+        locked.sort(Comparator.comparingInt(Fish::level).thenComparing(Fish::id));
+        return List.copyOf(locked);
+    }
+
+    /**
      * What each fish's odds are here, most likely first.
      *
      * <p>The same candidates and the same weights the roll uses, so what this

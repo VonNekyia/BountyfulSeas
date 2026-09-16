@@ -7,7 +7,10 @@ import com.nekyia.bountyfulSeas.fish.FishLibrary;
 import com.nekyia.bountyfulSeas.fish.Rarity;
 import com.nekyia.bountyfulSeas.fish.TierKinds;
 import com.nekyia.bountyfulSeas.fishing.Chance;
+import com.nekyia.bountyfulSeas.fish.Modifier;
 import com.nekyia.bountyfulSeas.fishing.FishSelector;
+import com.nekyia.bountyfulSeas.fishing.WaterConditions;
+import com.nekyia.bountyfulSeas.guide.FishNames;
 import com.nekyia.bountyfulSeas.fishing.LengthCurve;
 import com.nekyia.bountyfulSeas.level.Progress;
 import com.nekyia.bountyfulSeas.stats.Milestone;
@@ -29,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -51,7 +55,7 @@ import java.util.function.ToDoubleFunction;
 final class DebugCommand {
 
     static final List<String> SUBCOMMANDS =
-            List.of("bobber", "swarm", "item", "enchant", "set", "lengthvalue");
+            List.of("bobber", "regions", "swarm", "item", "enchant", "set", "lengthvalue");
 
     /** Below this, odds read better as "1 in n" than as a percentage. */
     private static final double RARE_PERCENT = 0.1;
@@ -105,6 +109,7 @@ final class DebugCommand {
 
         switch (sub) {
             case "bobber" -> bobber(player);
+            case "regions" -> regions(player);
             case "swarm" -> swarm(player);
             case "item" -> item(player, rest);
             case "enchant" -> enchant(player, rest);
@@ -157,6 +162,7 @@ final class DebugCommand {
     private void usage(Player player) {
         player.sendMessage(heading("Debug"));
         player.sendMessage(detail("bobber", "what can be caught where your bobber is"));
+        player.sendMessage(detail("regions", "every kind of water there is, and what bites in it"));
         player.sendMessage(detail("swarm", "where every swarm is right now"));
         player.sendMessage(detail("item <fish> [cm]", "make the next bite hand over this fish"));
         player.sendMessage(detail("enchant [enchantment] [level]", "enchant the rod you are holding"));
@@ -228,6 +234,57 @@ final class DebugCommand {
         }
 
         tiers(player, chances, chanceOf);
+        outOfReach(player, spot, levels.levelOf(player.getUniqueId()));
+    }
+
+    /**
+     * What lives here and is still locked, as the guide would put it.
+     *
+     * <p>Named only by its tier colour, because the level is the answer and the
+     * fish is still worth finding out. Half of "why did I not catch that here" is
+     * this list rather than the one above it.
+     */
+    private void outOfReach(Player player, WaterConditions spot, int anglerLevel) {
+        List<Fish> locked = FishSelector.outOfReach(fish.get().all(), spot, anglerLevel);
+        if (locked.isEmpty()) {
+            return;
+        }
+
+        player.sendMessage(heading("Not yours yet"));
+        for (Fish waiting : locked) {
+            player.sendMessage(Component.text("  ")
+                    .append(FishNames.unknown(waiting))
+                    .append(Component.text("  level " + waiting.level(), NamedTextColor.WHITE))
+                    .append(Component.text("  " + waiting.rarity().configName()
+                            + ", " + waiting.category(), NamedTextColor.DARK_GRAY)));
+        }
+    }
+
+    // --------------------------------------------------------------- regions
+
+    /**
+     * Every kind of water the scan found, as a menu rather than a wall of chat.
+     *
+     * <p>A menu because the question is comparative - which combinations hold
+     * nothing - and because the modifiers are worth turning on and off while
+     * looking at the answer.
+     */
+    private void regions(Player player) {
+        WaterMap map = waterMap.get();
+        if (map == null) {
+            player.sendMessage(error("No water map is loaded, so there are no regions to show."));
+            return;
+        }
+        if (map.regionCount() == 0) {
+            player.sendMessage(error("The water map holds no regions."));
+            return;
+        }
+
+        new RegionsMenu(player, map, fish.get(),
+                RodChances.of(player, settings.get(), kinds.get()),
+                levels.levelOf(player.getUniqueId()),
+                EnumSet.noneOf(Modifier.class),
+                WaterSpot.conditionsOf(player.getWorld())).open();
     }
 
     /**
