@@ -112,11 +112,18 @@ public final class BountyfulSeas extends JavaPlugin {
         stats.invalidate(player);
     }
 
-    /** The configured level curve, read fresh so a config reload is felt. */
+    /**
+     * The level curve, derived fresh so a config reload - or an edited fish - is felt.
+     *
+     * <p>Built from the roster rather than configured, so the last level and every
+     * threshold follow the fish files by themselves.
+     */
     private LevelCurve levelCurve() {
         Settings.LevelSettings configured = settings.levels();
-        return new LevelCurve(configured.experienceBase(), configured.steepness(),
-                configured.maxLevel());
+        // Objects count too: they are milestones like any other catch, so leaving
+        // them out would hand players experience the thresholds never budgeted for.
+        int[] fishLevels = fish.all().stream().mapToInt(Fish::level).toArray();
+        return LevelCurve.from(fishLevels, experienceRule(), configured.completion());
     }
 
     /** What a milestone pays, as configured. */

@@ -1,5 +1,7 @@
 package com.nekyia.bountyfulSeas.config;
 
+import com.nekyia.bountyfulSeas.level.CompletionRule;
+
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -136,13 +138,14 @@ public record Settings(
     /**
      * The angling level.
      *
-     * @param experiencePerStep experience for the first milestone of a level one fish
-     * @param experienceBase    experience the second level costs
-     * @param steepness         how sharply the cost of a level climbs
-     * @param maxLevel          the last level there is
+     * <p>What a level costs is not here. It is worked out from the roster, so the
+     * last level and every threshold follow the fish files rather than a number
+     * somebody has to remember to raise.
+     *
+     * @param experiencePerStep experience for the first milestone of any fish
+     * @param completion        how much of what is open a level asks for
      */
-    public record LevelSettings(long experiencePerStep, long experienceBase,
-                                double steepness, int maxLevel) {
+    public record LevelSettings(long experiencePerStep, CompletionRule completion) {
     }
 
     /**

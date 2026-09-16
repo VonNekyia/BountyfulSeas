@@ -93,7 +93,8 @@ final class AnglerLevels {
      *
      * <p>Every milestone passed on every fish, each priced by the rule. A fish that
      * has since been deleted from the config contributes nothing, which is the
-     * honest answer: its level is no longer known.
+     * honest answer: it is no longer part of the roster the curve is built from,
+     * so paying for it would put a player above a threshold that never counted it.
      */
     private long experienceOf(Map<String, FishStats> totals) {
         FishLibrary library = fish.get();
@@ -107,7 +108,7 @@ final class AnglerLevels {
             }
             for (Milestone milestone : Milestone.values()) {
                 if (caught.catches() >= milestone.required()) {
-                    experience += rule.forMilestone(milestone.step(), definition.level());
+                    experience += rule.forMilestone(milestone.step());
                 }
             }
         }

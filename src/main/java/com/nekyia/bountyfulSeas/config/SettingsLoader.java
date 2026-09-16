@@ -1,5 +1,7 @@
 package com.nekyia.bountyfulSeas.config;
 
+import com.nekyia.bountyfulSeas.level.CompletionRule;
+import com.nekyia.bountyfulSeas.stats.Milestone;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
@@ -26,7 +28,6 @@ public final class SettingsLoader {
     private static final int MAX_SWARMS = 500;
     private static final double MIN_SIZE_SHAPE = 0.1;
     private static final double MAX_SIZE_SMALLEST = 0.95;
-    private static final double MIN_STEEPNESS = 1.0;
 
     /** Must stay in step with the {@code tiers} block in config.yml. */
     private static final Set<String> DEFAULT_FISH_TIERS = Set.of(
@@ -113,34 +114,46 @@ public final class SettingsLoader {
         return names;
     }
 
-    /** What a milestone pays and what a level costs. */
+    /** What a milestone pays, and what share of it a level asks for. */
     private static Settings.LevelSettings levels(FileConfiguration config, List<String> problems) {
-        long perStep = config.getLong("levels.experience-per-step", 25);
+        long perStep = config.getLong("levels.experience-per-step", 10);
         if (perStep < 0) {
             problems.add("levels.experience-per-step was " + perStep
                     + ", which cannot be negative; using 0");
             perStep = 0;
         }
 
-        long base = config.getLong("levels.experience-base", 100);
-        if (base < 1) {
-            problems.add("levels.experience-base was " + base + ", which cannot be below 1; using 1");
-            base = 1;
+        int completedAt = config.getInt("levels.completed-at-milestone", 5);
+        if (completedAt < 1 || completedAt > Milestone.values().length) {
+            problems.add("levels.completed-at-milestone was " + completedAt + ", which is not a"
+                    + " milestone between 1 and " + Milestone.values().length + "; using 5");
+            completedAt = 5;
         }
 
-        double steepness = config.getDouble("levels.steepness", 1.8);
-        if (steepness < MIN_STEEPNESS) {
-            problems.add("levels.steepness was " + steepness + ", which is below " + MIN_STEEPNESS
-                    + "; using " + MIN_STEEPNESS);
-            steepness = MIN_STEEPNESS;
+        double share = share(config, "levels.completion", 0.60, problems);
+        double lateShare = share(config, "levels.completion-late", 0.80, problems);
+
+        int lateLevels = config.getInt("levels.late-levels", 5);
+        if (lateLevels < 0) {
+            problems.add("levels.late-levels was " + lateLevels
+                    + ", which cannot be negative; using 0");
+            lateLevels = 0;
         }
 
-        int maxLevel = config.getInt("levels.max-level", 50);
-        if (maxLevel < 1) {
-            problems.add("levels.max-level was " + maxLevel + ", which cannot be below 1; using 1");
-            maxLevel = 1;
+        return new Settings.LevelSettings(perStep,
+                new CompletionRule(completedAt, share, lateShare, lateLevels));
+    }
+
+    /** A fraction of what is open, which only means anything between 0 and 1. */
+    private static double share(FileConfiguration config, String path, double fallback,
+                                List<String> problems) {
+        double value = config.getDouble(path, fallback);
+        if (value <= 0 || value > 1) {
+            problems.add(path + " was " + value + ", which is not a share between 0 and 1; using "
+                    + fallback);
+            return fallback;
         }
-        return new Settings.LevelSettings(perStep, base, steepness, maxLevel);
+        return value;
     }
 
     /**

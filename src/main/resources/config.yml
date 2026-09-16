@@ -119,16 +119,26 @@ sizes:
 # Without a database there are no counts, so there is no level either - the gate
 # then stands open rather than locking every fish away forever.
 levels:
-  # Experience for the first milestone of a level one fish.
-  experience-per-step: 25
+  # Experience for the first milestone of any fish. The steps are flat multiples of
+  # it, so with 10 a fish pays 10, 20, 30 and so on up to 100 for its tenth.
+  experience-per-step: 10
 
-  # What the second level costs. Reaching level n costs
-  # experience-base x (n - 1) ^ steepness in total, so with these numbers level 2
-  # costs 100, level 10 costs 5290 and level 50 costs 114800.
-  experience-base: 100
-  steepness: 1.8
+  # What a level costs is not set here. It is a share of what the fish already open
+  # are worth, so adding a fish to a category raises every later level by itself and
+  # the last level is simply the highest one any fish is locked behind.
 
-  max-level: 15
+  # The milestone at which a fish counts as finished, which is what the share below
+  # is measured against. Five is fifty catches. Raising it multiplies the whole
+  # curve: milestones are paid flat but cost exponentially, so measuring against the
+  # tenth would put level 2 at five hundred catches of every starter fish.
+  completed-at-milestone: 5
+
+  # How much of what is open you have to have worked through for the next level.
+  completion: 0.60
+
+  # The same for the last few levels, which should ask for more.
+  completion-late: 0.80
+  late-levels: 5
 
 # The two sides of the table.
 #
