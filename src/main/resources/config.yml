@@ -21,11 +21,10 @@ water-map:
   regenerate-on-start: true
 
   # Extra flags passed to the analyzer. --world and --output are always supplied.
-  arguments:
-    - "--max-below-sea-level"
-    - "10"
-    - "--min-water-body"
-    - "20"
+  # Empty uses the tuned generator defaults: 2,000-column surface bodies,
+  # 4,000-column cave pools, 20,000-column river merging, 10,000-column sea
+  # merging, unrestricted cave detection, and ICE only at 50% real ice cover.
+  arguments: []
 
 # Catch statistics. Without a database the plugin still works, it just keeps no
 # totals and the guide stays empty.

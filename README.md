@@ -308,9 +308,14 @@ definition asks for it.
 `/bs watermapregenerate` runs the bundled `water-analyzer`. The jar carries a
 build for Windows x86_64 and a static one for Linux x86_64, and unpacks whichever
 matches the server; anywhere else, point `water-map.analyzer` in `config.yml` at a
-build for that machine. Building the Linux one from any host needs nothing beyond
-`rustup target add x86_64-unknown-linux-musl` - the generator repository's
-`.cargo/config.toml` points it at the linker Rust already ships:
+build for that machine. The default `water-map.arguments: []` deliberately uses
+the generator's tuned defaults: 2,000-column surface bodies, 4,000-column cave
+pools, 20,000-column river merging, 10,000-column sea merging, unrestricted cave
+detection, and the ice modifier only when at least 50% of the measured region is
+really ice-covered. Put explicit analyzer flags in that list only when this server
+needs to override the reproducible defaults.
+
+Build the Linux binary on Linux with the musl target and a musl C linker installed:
 
 ```bash
 cargo build --release --target x86_64-unknown-linux-musl
