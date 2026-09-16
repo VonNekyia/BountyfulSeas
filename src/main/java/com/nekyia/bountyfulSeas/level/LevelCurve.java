@@ -11,7 +11,8 @@ package com.nekyia.bountyfulSeas.level;
  * with it and there is nothing left to keep in step.
  *
  * <p>Held as a table rather than a formula because the shape is not a formula: it
- * bends wherever the roster does, and the last few levels ask for a larger share.
+ * bends wherever the roster does, and each band asks a larger share of a longer
+ * fish than the one below it.
  */
 public final class LevelCurve {
 
@@ -47,11 +48,11 @@ public final class LevelCurve {
             open[level] += open[level - 1];
         }
 
-        long finished = rule.upTo(demand.completedAtStep());
         long[] thresholds = new long[maxLevel + 1];
         for (int level = FIRST_LEVEL + 1; level <= maxLevel; level++) {
-            thresholds[level] = Math.round(
-                    demand.shareFor(level, maxLevel) * finished * open[level - 1]);
+            CompletionRule.Band band = demand.bandFor(level, maxLevel);
+            long finished = rule.upTo(band.completedAtStep());
+            thresholds[level] = Math.round(band.share() * finished * open[level - 1]);
             // A level that opened nothing new, or a share that fell, must still not
             // make the next level cheaper than the one already passed.
             thresholds[level] = Math.max(thresholds[level], thresholds[level - 1]);

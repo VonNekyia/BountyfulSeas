@@ -126,19 +126,22 @@ levels:
   # What a level costs is not set here. It is a share of what the fish already open
   # are worth, so adding a fish to a category raises every later level by itself and
   # the last level is simply the highest one any fish is locked behind.
-
-  # The milestone at which a fish counts as finished, which is what the share below
-  # is measured against. Five is fifty catches. Raising it multiplies the whole
-  # curve: milestones are paid flat but cost exponentially, so measuring against the
-  # tenth would put level 2 at five hundred catches of every starter fish.
-  completed-at-milestone: 5
-
-  # How much of what is open you have to have worked through for the next level.
-  completion: 0.60
-
-  # The same for the last few levels, which should ask for more.
-  completion-late: 0.80
-  late-levels: 5
+  #
+  # Each band below covers an equal slice of the levels there are, lowest first -
+  # three bands over fifteen levels is five levels each. completed-at-milestone is
+  # what counts as having finished a fish, and completion is how much of that you
+  # have to have earned across everything open before the next level.
+  #
+  # Milestones are paid flat but cost exponentially, so this number is the one that
+  # decides whether the curve is playable: the fourth milestone is twenty catches,
+  # the sixth a hundred, the tenth a thousand.
+  bands:
+    - completed-at-milestone: 4
+      completion: 0.60
+    - completed-at-milestone: 5
+      completion: 0.60
+    - completed-at-milestone: 6
+      completion: 0.80
 
 # The two sides of the table.
 #

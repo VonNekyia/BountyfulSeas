@@ -114,6 +114,12 @@ public final class SettingsLoader {
         return names;
     }
 
+    /** Milestone four, five and six across the levels - the curve the plugin ships. */
+    private static final CompletionRule DEFAULT_BANDS = new CompletionRule(List.of(
+            new CompletionRule.Band(4, 0.60),
+            new CompletionRule.Band(5, 0.60),
+            new CompletionRule.Band(6, 0.80)));
+
     /** What a milestone pays, and what share of it a level asks for. */
     private static Settings.LevelSettings levels(FileConfiguration config, List<String> problems) {
         long perStep = config.getLong("levels.experience-per-step", 10);
@@ -123,37 +129,52 @@ public final class SettingsLoader {
             perStep = 0;
         }
 
-        int completedAt = config.getInt("levels.completed-at-milestone", 5);
-        if (completedAt < 1 || completedAt > Milestone.values().length) {
-            problems.add("levels.completed-at-milestone was " + completedAt + ", which is not a"
-                    + " milestone between 1 and " + Milestone.values().length + "; using 5");
-            completedAt = 5;
-        }
-
-        double share = share(config, "levels.completion", 0.60, problems);
-        double lateShare = share(config, "levels.completion-late", 0.80, problems);
-
-        int lateLevels = config.getInt("levels.late-levels", 5);
-        if (lateLevels < 0) {
-            problems.add("levels.late-levels was " + lateLevels
-                    + ", which cannot be negative; using 0");
-            lateLevels = 0;
-        }
-
-        return new Settings.LevelSettings(perStep,
-                new CompletionRule(completedAt, share, lateShare, lateLevels));
+        return new Settings.LevelSettings(perStep, bands(config, problems));
     }
 
-    /** A fraction of what is open, which only means anything between 0 and 1. */
-    private static double share(FileConfiguration config, String path, double fallback,
-                                List<String> problems) {
-        double value = config.getDouble(path, fallback);
-        if (value <= 0 || value > 1) {
-            problems.add(path + " was " + value + ", which is not a share between 0 and 1; using "
-                    + fallback);
-            return fallback;
+    /**
+     * The bands the levels are split into, lowest first.
+     *
+     * <p>A band that cannot be read is skipped rather than guessed at, and if that
+     * leaves none the shipped three stand in: a curve with no bands has no
+     * thresholds, which would hand everyone the last level.
+     */
+    private static CompletionRule bands(FileConfiguration config, List<String> problems) {
+        List<CompletionRule.Band> bands = new ArrayList<>();
+        List<Map<?, ?>> listed = config.getMapList("levels.bands");
+        for (int index = 0; index < listed.size(); index++) {
+            Map<?, ?> entry = listed.get(index);
+            String where = "levels.bands[" + index + "]";
+
+            int step = number(entry.get("completed-at-milestone"), 0).intValue();
+            if (step < 1 || step > Milestone.values().length) {
+                problems.add(where + ".completed-at-milestone was " + entry.get("completed-at-milestone")
+                        + ", which is not a milestone between 1 and " + Milestone.values().length
+                        + "; skipping the band");
+                continue;
+            }
+
+            double share = number(entry.get("completion"), 0).doubleValue();
+            if (share <= 0 || share > 1) {
+                problems.add(where + ".completion was " + entry.get("completion")
+                        + ", which is not a share between 0 and 1; skipping the band");
+                continue;
+            }
+            bands.add(new CompletionRule.Band(step, share));
         }
-        return value;
+
+        if (bands.isEmpty()) {
+            if (!listed.isEmpty()) {
+                problems.add("levels.bands left nothing usable; using the shipped bands");
+            }
+            return DEFAULT_BANDS;
+        }
+        return new CompletionRule(bands);
+    }
+
+    /** A config number, whatever numeric type it was written as. */
+    private static Number number(Object value, Number fallback) {
+        return value instanceof Number given ? given : fallback;
     }
 
     /**
