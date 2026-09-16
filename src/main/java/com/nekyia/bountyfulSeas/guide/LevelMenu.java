@@ -94,9 +94,7 @@ public final class LevelMenu extends RoseGUI {
 
         for (Fish fish : opens) {
             boolean found = standings.statsOf(fish.id()).caught();
-            Component name = found
-                    ? FishNames.of(fish)
-                    : Component.text("???", NamedTextColor.DARK_GRAY);
+            Component name = found ? FishNames.of(fish) : FishNames.unknown(fish);
             lore.add(Component.text("  ", NamedTextColor.DARK_GRAY)
                     .append(name)
                     .append(Component.text("  " + fish.rarity().configName(), NamedTextColor.DARK_GRAY))

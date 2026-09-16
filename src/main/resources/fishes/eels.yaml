@@ -11,7 +11,7 @@ european_eel:
   fish_item: "nexo:european_eel"
 
   max_length: 134
-  level: 12
+  level: 6
 
   water_type: [ocean, river, lake]
   vegetation: [temperate]
@@ -37,7 +37,7 @@ european_conger:
   fish_item: "nexo:european_conger"
 
   max_length: 301
-  level: 16
+  level: 9
 
   water_type: [ocean]
   vegetation: [temperate]

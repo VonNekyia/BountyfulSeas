@@ -34,7 +34,7 @@ atlantic_bluefin_tuna:
   fish_item: "nexo:atlantic_bluefin_tuna"
 
   max_length: 459
-  level: 23
+  level: 14
 
   water_type: [ocean]
 
@@ -55,7 +55,7 @@ swordfish:
   fish_item: "nexo:swordfish"
 
   max_length: 456
-  level: 24
+  level: 15
 
   water_type: [ocean]
 

@@ -60,7 +60,7 @@ tiger_pufferfish:
   fish_item: "nexo:tiger_pufferfish"
 
   max_length: 81
-  level: 9
+  level: 12
 
   water_type: [ocean]
   vegetation: [temperate, warm]
@@ -85,7 +85,7 @@ anglerfish:
   fish_item: "nexo:anglerfish"
 
   max_length: 201
-  level: 13
+  level: 6
 
   water_type: [ocean]
   vegetation: [cold, temperate]
@@ -108,7 +108,7 @@ wels_catfish:
   fish_item: "nexo:wels_catfish"
 
   max_length: 274
-  level: 19
+  level: 11
 
   water_type: [river, lake]
   vegetation: [temperate]

@@ -11,7 +11,7 @@ european_plaice:
   fish_item: "nexo:european_plaice"
 
   max_length: 101
-  level: 6
+  level: 7
 
   water_type: [ocean]
   vegetation: [cold, temperate]

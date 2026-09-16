@@ -7,7 +7,9 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * How a fish's name is shown, everywhere it is shown.
@@ -31,26 +33,54 @@ public final class FishNames {
 
     private static final MiniMessage MINI = MiniMessage.miniMessage();
 
-    /** The tiers that are coloured by rank. Anything not listed keeps its own formatting. */
+    /** What each tier is worth, at a glance. */
     private static final Map<Rarity, String> TIER_COLOURS = new EnumMap<>(Map.of(
             Rarity.MISC, "#C3CAD4",       // light slate grey
             Rarity.UNCOMMON, "#8EE3A8",   // mint green
             Rarity.RARE, "#86C8F7",       // sky blue
-            Rarity.EPIC, "#C9A2FF"));     // lavender
+            Rarity.EPIC, "#C9A2FF",       // lavender
+            Rarity.LEGENDARY, "#FFC132",  // gold
+            Rarity.TREASURE, "#FFE08A",   // pale gold
+            Rarity.MYTHIC, "#FF6B6B",     // red
+            Rarity.SIGNATURE, "#D48BFF"));// bright violet
+
+    /**
+     * The tiers whose names are recoloured wholesale.
+     *
+     * <p>Legendary and the rest keep whatever their definition writes - a legendary
+     * is meant to look like itself. Their colours above are still used for the
+     * stand-in shown before anyone has caught one.
+     */
+    private static final Set<Rarity> RECOLOURED =
+            EnumSet.of(Rarity.MISC, Rarity.UNCOMMON, Rarity.RARE, Rarity.EPIC);
 
     private FishNames() {
     }
 
     /** The name as MiniMessage, ready for anything that parses it - such as Nexo. */
     public static String miniMessage(Fish fish) {
-        String colour = fish.rarity() == null ? null : TIER_COLOURS.get(fish.rarity());
-        if (colour == null) {
+        if (fish.rarity() == null || !RECOLOURED.contains(fish.rarity())) {
             return fish.name();
         }
+        String colour = TIER_COLOURS.get(fish.rarity());
         // Stripped to plain text, then escaped, so a name that happens to contain a
         // bracket cannot be read back as a tag.
         String plain = MINI.escapeTags(MINI.stripTags(fish.name()));
         return "<color:" + colour + ">" + plain + "</color>";
+    }
+
+    /**
+     * The stand-in for a fish nobody has caught yet, in its tier's colour.
+     *
+     * <p>The colour is the one thing worth giving away early: it says how hard the
+     * catch will be without saying what it is.
+     */
+    public static Component unknown(Fish fish) {
+        String colour = fish.rarity() == null ? null : TIER_COLOURS.get(fish.rarity());
+        Component text = colour == null
+                ? Component.text("???")
+                : MINI.deserialize("<color:" + colour + ">???</color>");
+        return text.decoration(TextDecoration.ITALIC, false);
     }
 
     /** The name as a component, not italic, for menus and chat. */

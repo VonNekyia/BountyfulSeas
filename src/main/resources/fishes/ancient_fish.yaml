@@ -11,7 +11,7 @@ atlantic_tarpon:
   fish_item: "nexo:atlantic_tarpon"
 
   max_length: 251
-  level: 18
+  level: 11
 
   water_type: [ocean, river, lake]
   vegetation: [warm]
@@ -35,7 +35,7 @@ alligator_gar:
   fish_item: "nexo:alligator_gar"
 
   max_length: 306
-  level: 22
+  level: 14
 
   water_type: [river, lake]
 
@@ -57,7 +57,7 @@ european_sturgeon:
   fish_item: "nexo:european_sturgeon"
 
   max_length: 601
-  level: 23
+  level: 14
 
   water_type: [ocean, river]
   vegetation: [temperate]
@@ -79,7 +79,7 @@ arapaima:
   fish_item: "nexo:arapaima"
 
   max_length: 451
-  level: 24
+  level: 15
 
   water_type: [river, lake]
   vegetation: [warm]

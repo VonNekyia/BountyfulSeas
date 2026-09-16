@@ -36,7 +36,7 @@ common_roach:
   fish_item: "nexo:common_roach"
 
   max_length: 52
-  level: 2
+  level: 1
 
   water_type: [river, lake]
   vegetation: [temperate]
@@ -82,7 +82,7 @@ crucian_carp:
   fish_item: "nexo:crucian_carp"
 
   max_length: 65
-  level: 2
+  level: 3
 
   water_type: [river, lake]
   depth: [shallow]
@@ -104,7 +104,7 @@ goldfish:
   fish_item: "nexo:goldfish"
 
   max_length: 60
-  level: 2
+  level: 3
 
   water_type: [river, lake]
   depth: [shallow]
@@ -123,7 +123,7 @@ european_chub:
   fish_item: "nexo:european_chub"
 
   max_length: 61
-  level: 3
+  level: 4
 
   water_type: [river, lake]
   vegetation: [temperate]
@@ -146,7 +146,7 @@ tench:
   fish_item: "nexo:tench"
 
   max_length: 71
-  level: 4
+  level: 6
 
   water_type: [river, lake]
   vegetation: [temperate, warm]
@@ -169,7 +169,7 @@ common_barbel:
   fish_item: "nexo:common_barbel"
 
   max_length: 121
-  level: 6
+  level: 7
 
   water_type: [river]
   vegetation: [temperate]
@@ -191,7 +191,7 @@ common_carp:
   fish_item: "nexo:common_carp"
 
   max_length: 121
-  level: 6
+  level: 7
 
   water_type: [river, lake]
   vegetation: [temperate, warm]
@@ -215,7 +215,7 @@ blind_cave_loach:
   fish_item: "nexo:blind_cave_loach"
 
   max_length: 8
-  level: 8
+  level: 1
 
   water_type: [cave]
 

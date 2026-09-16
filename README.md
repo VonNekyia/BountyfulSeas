@@ -70,9 +70,12 @@ the shipped numbers:
 |---|---|---|---|---|
 | 2 | 100 | | a level 1 fish | 1 375 |
 | 5 | 1 213 | | a level 5 fish | 6 875 |
-| 10 | 5 220 | | a level 12 fish | 16 500 |
-| 25 | 30 506 | | a level 25 fish | 34 375 |
-| 50 | 110 243 | | | |
+| 10 | 5 220 | | a level 10 fish | 13 750 |
+| 15 | 11 562 | | a level 15 fish | 20 625 |
+
+Fifteen levels, and every fish sits on one of them. They are spread by water as
+well as by rank, so each level opens something in the sea **and** something
+inland: nobody is stuck because they settled on a coast or a river.
 
 **Nothing about the level is stored.** Experience is worked out from the catch
 counts that are already kept, so there is no second table, no extra write, and no

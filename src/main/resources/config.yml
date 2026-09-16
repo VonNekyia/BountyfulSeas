@@ -128,7 +128,7 @@ levels:
   experience-base: 100
   steepness: 1.8
 
-  max-level: 50
+  max-level: 15
 
 # The two sides of the table.
 #

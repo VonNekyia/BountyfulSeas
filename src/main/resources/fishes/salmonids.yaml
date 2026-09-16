@@ -11,7 +11,7 @@ european_grayling:
   fish_item: "nexo:european_grayling"
 
   max_length: 61
-  level: 4
+  level: 5
 
   water_type: [river, lake]
   vegetation: [cold, temperate]
@@ -34,7 +34,7 @@ brown_trout:
   fish_item: "nexo:brown_trout"
 
   max_length: 141
-  level: 5
+  level: 9
 
   water_type: [river, lake]
   vegetation: [cold, temperate]
@@ -56,7 +56,7 @@ rainbow_trout:
   fish_item: "nexo:rainbow_trout"
 
   max_length: 123
-  level: 7
+  level: 9
 
   water_type: [river, lake]
   vegetation: [cold, temperate]
@@ -79,7 +79,7 @@ alpine_char:
   fish_item: "nexo:alpine_char"
 
   max_length: 101
-  level: 8
+  level: 10
 
   water_type: [lake]
   vegetation: [cold]
@@ -101,7 +101,7 @@ arctic_char:
   fish_item: "nexo:arctic_char"
 
   max_length: 108
-  level: 8
+  level: 2
 
   water_type: [ocean, river, lake]
   vegetation: [cold]
@@ -123,7 +123,7 @@ atlantic_salmon:
   fish_item: "nexo:atlantic_salmon"
 
   max_length: 151
-  level: 14
+  level: 7
 
   water_type: [ocean, river]
   vegetation: [cold, temperate]
@@ -146,7 +146,7 @@ huchen:
   fish_item: "nexo:huchen"
 
   max_length: 151
-  level: 18
+  level: 13
 
   water_type: [river]
   vegetation: [cold, temperate]

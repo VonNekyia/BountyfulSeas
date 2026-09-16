@@ -31,7 +31,7 @@ red_bellied_piranha:
   fish_item: "nexo:red_bellied_piranha"
 
   max_length: 51
-  level: 8
+  level: 11
 
   water_type: [river, lake]
   vegetation: [warm]
@@ -53,7 +53,7 @@ northern_pike:
   fish_item: "nexo:northern_pike"
 
   max_length: 151
-  level: 10
+  level: 12
 
   water_type: [river, lake]
 
@@ -74,7 +74,7 @@ goliath_tigerfish:
   fish_item: "nexo:goliath_tigerfish"
 
   max_length: 151
-  level: 20
+  level: 13
 
   water_type: [river, lake]
   vegetation: [warm]

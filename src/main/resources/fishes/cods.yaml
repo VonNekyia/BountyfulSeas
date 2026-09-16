@@ -35,7 +35,7 @@ atlantic_cod:
   fish_item: "nexo:atlantic_cod"
 
   max_length: 201
-  level: 8
+  level: 4
 
   water_type: [ocean]
   vegetation: [cold, temperate]
@@ -80,7 +80,7 @@ european_hake:
   fish_item: "nexo:european_hake"
 
   max_length: 141
-  level: 9
+  level: 5
 
   water_type: [ocean]
   vegetation: [cold, temperate]
