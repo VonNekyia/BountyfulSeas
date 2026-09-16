@@ -35,7 +35,8 @@ public final class FishNames {
 
     /** What each tier is worth, at a glance. */
     private static final Map<Rarity, String> TIER_COLOURS = new EnumMap<>(Map.of(
-            Rarity.MISC, "#C3CAD4",       // light slate grey
+            Rarity.COMMON, "#C3CAD4",     // light slate grey
+            Rarity.MISC, "#8B93A0",       // junk: the same grey, gone dull
             Rarity.UNCOMMON, "#8EE3A8",   // mint green
             Rarity.RARE, "#86C8F7",       // sky blue
             Rarity.EPIC, "#C9A2FF",       // lavender
@@ -52,7 +53,7 @@ public final class FishNames {
      * stand-in shown before anyone has caught one.
      */
     private static final Set<Rarity> RECOLOURED =
-            EnumSet.of(Rarity.MISC, Rarity.UNCOMMON, Rarity.RARE, Rarity.EPIC);
+            EnumSet.of(Rarity.COMMON, Rarity.MISC, Rarity.UNCOMMON, Rarity.RARE, Rarity.EPIC);
 
     private FishNames() {
     }

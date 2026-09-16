@@ -165,7 +165,7 @@ levels:
 #
 # A tier at chance 0 is out of it entirely - neither lifted nor spent.
 tiers:
-  fish: [uncommon, rare, epic, legendary, mythic, signature]
+  fish: [common, uncommon, rare, epic, legendary, mythic, signature]
   objects: [misc, treasure]
 
 # How likely each tier is when something bites. The tier is drawn first, then an
@@ -174,19 +174,24 @@ tiers:
 #
 # These are weights. The base set adds up to 100, so the numbers read as
 # percentages, and what an enchantment adds to a better tier is taken back out of
-# the tiers below - uncommon first, then rare, then misc, then epic, each emptied
-# before the next is touched. Only the tiers actually present at a spot take part
-# in the draw.
+# the tiers below - common first, then uncommon, then rare, then misc, then epic,
+# each emptied before the next is touched.
+#
+# A tier with nothing to offer at a spot hands its share to misc rather than to the
+# other tiers: water with no rare fish in it gives up a boot where the rare would
+# have been, instead of quietly making every other fish there likelier. Where there
+# is no junk at the spot either, the share is not drawn at all.
 #
 # misc is junk and treasure is loot; both are tiers rather than fish and carry no
 # length. signature is reserved for hand-placed fish and is never rolled by
 # default - give it a weight above 0 to put it in the draw.
 rarity-chances:
-  uncommon: 75      # spent first: everything the enchantments add comes out of here
+  common: 40        # spent first: everything the enchantments add comes out of here
+  uncommon: 35      # spent second
   rare: 15          # lifted by Luck of the Fish, and spent once uncommon is empty
-  misc: 5           # junk, lifted by nothing, spent third
-  epic: 4           # lifted by Luck of the Fish, spent last
+  epic: 5           # lifted by Luck of the Fish, spent last
   legendary: 0.5    # never spent: the top of the fish side
+  misc: 4           # junk, lifted by nothing, and the stand-in for absent tiers
   treasure: 0.5     # enchanted books and the like, lifted by Luck of the Sea, never spent
   mythic: 0         # off for now; nothing lifts it and nothing spends it
   signature: 0      # hand-placed only

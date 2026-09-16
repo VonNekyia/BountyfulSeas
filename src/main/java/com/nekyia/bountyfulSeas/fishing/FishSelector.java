@@ -62,9 +62,10 @@ public final class FishSelector {
             byRarity.computeIfAbsent(fish.rarity(), key -> new ArrayList<>()).add(fish);
         }
 
+        Map<Rarity, Double> tiers = tierChances(byRarity.keySet(), chanceOf);
         double tierTotal = 0;
-        for (Rarity rarity : byRarity.keySet()) {
-            tierTotal += Math.max(0, chanceOf.applyAsDouble(rarity));
+        for (double chance : tiers.values()) {
+            tierTotal += chance;
         }
         if (tierTotal <= 0) {
             return List.of();
@@ -73,7 +74,7 @@ public final class FishSelector {
         // The real odds: the tier's normalised share, split by spawn weight inside it.
         List<Chance> chances = new ArrayList<>(candidates.size());
         for (Map.Entry<Rarity, List<Fish>> entry : byRarity.entrySet()) {
-            double tierShare = Math.max(0, chanceOf.applyAsDouble(entry.getKey())) / tierTotal;
+            double tierShare = tiers.getOrDefault(entry.getKey(), 0.0) / tierTotal;
             long weightTotal = entry.getValue().stream().mapToLong(Fish::spawnWeight).sum();
             if (tierShare <= 0 || weightTotal <= 0) {
                 continue;
@@ -95,9 +96,9 @@ public final class FishSelector {
      * one pass would make a legendary likelier in water that happens to hold three
      * of them, which is the opposite of what a rarity is for.
      *
-     * <p>Only tiers actually present here take part, and their chances are
-     * normalised against each other. A spot with no legendary simply never rolls
-     * one, rather than rolling one and coming up empty.
+     * <p>Only tiers actually present here take part. A spot with no legendary
+     * simply never rolls one, and that share goes to junk rather than making every
+     * other fish here likelier - see {@link #tierChances}.
      *
      * <p>Null is an ordinary outcome, not a failure: water nobody wrote a fish for
      * should hand back vanilla's catch rather than something invented.
@@ -116,16 +117,45 @@ public final class FishSelector {
             byRarity.computeIfAbsent(fish.rarity(), key -> new ArrayList<>()).add(fish);
         }
 
-        Rarity tier = rollRarity(byRarity.keySet(), chanceOf, random);
+        Rarity tier = rollRarity(tierChances(byRarity.keySet(), chanceOf), random);
         return tier == null ? null : rollWithin(byRarity.get(tier), random);
     }
 
-    /** Draws a tier from those present, weighted by its configured chance. */
-    private static Rarity rollRarity(Set<Rarity> present, ToDoubleFunction<Rarity> chanceOf,
-                                     RandomGenerator random) {
+    /**
+     * What each tier here is really worth, before anything is normalised.
+     *
+     * <p>A tier with nothing to offer at this spot does not simply drop out and
+     * leave the others to share its odds between them. Its share goes to junk: water
+     * with no rare fish in it should hand up a boot where the rare would have been,
+     * which is the difference between a poor spot and a smaller one.
+     *
+     * <p>Where there is no junk here either, the share is not drawn at all and what
+     * is left normalises against itself - the only honest answer when a spot holds
+     * nothing that could stand in.
+     */
+    public static Map<Rarity, Double> tierChances(Set<Rarity> present,
+                                                  ToDoubleFunction<Rarity> chanceOf) {
+        Map<Rarity, Double> tiers = new EnumMap<>(Rarity.class);
+        double forfeited = 0;
+        for (Rarity rarity : Rarity.values()) {
+            double chance = Math.max(0, chanceOf.applyAsDouble(rarity));
+            if (present.contains(rarity)) {
+                tiers.put(rarity, chance);
+            } else {
+                forfeited += chance;
+            }
+        }
+        if (forfeited > 0 && tiers.containsKey(Rarity.MISC)) {
+            tiers.merge(Rarity.MISC, forfeited, Double::sum);
+        }
+        return tiers;
+    }
+
+    /** Draws a tier from those present, weighted by what it is worth here. */
+    private static Rarity rollRarity(Map<Rarity, Double> tiers, RandomGenerator random) {
         double total = 0;
-        for (Rarity rarity : present) {
-            total += Math.max(0, chanceOf.applyAsDouble(rarity));
+        for (double chance : tiers.values()) {
+            total += chance;
         }
         if (total <= 0) {
             // Every present tier is configured to never appear.
@@ -134,15 +164,14 @@ public final class FishSelector {
 
         double roll = random.nextDouble(total);
         Rarity last = null;
-        for (Rarity rarity : present) {
-            double chance = Math.max(0, chanceOf.applyAsDouble(rarity));
-            if (chance <= 0) {
+        for (Map.Entry<Rarity, Double> entry : tiers.entrySet()) {
+            if (entry.getValue() <= 0) {
                 continue;
             }
-            last = rarity;
-            roll -= chance;
+            last = entry.getKey();
+            roll -= entry.getValue();
             if (roll < 0) {
-                return rarity;
+                return entry.getKey();
             }
         }
         return last;

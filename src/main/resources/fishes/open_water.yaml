@@ -18,7 +18,7 @@ atlantic_mackerel:
   modifier: [swarm]
 
   spawn_weight: 130
-  rarity: "uncommon"
+  rarity: "common"
 
   on_eat:
     saturation: 4

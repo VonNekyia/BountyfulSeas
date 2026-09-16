@@ -4,6 +4,7 @@ import com.nekyia.bountyfulSeas.config.Settings;
 import com.nekyia.bountyfulSeas.enchantment.FishingEnchantments;
 import com.nekyia.bountyfulSeas.fish.Fish;
 import com.nekyia.bountyfulSeas.fish.FishLibrary;
+import com.nekyia.bountyfulSeas.fish.Rarity;
 import com.nekyia.bountyfulSeas.fish.TierKinds;
 import com.nekyia.bountyfulSeas.fishing.Chance;
 import com.nekyia.bountyfulSeas.fishing.FishSelector;
@@ -27,11 +28,15 @@ import org.bukkit.inventory.ItemStack;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.function.ToDoubleFunction;
 
 /**
  * The tools for looking at a fish table, and for putting it in a state worth
@@ -214,25 +219,97 @@ final class DebugCommand {
         }
 
         // The player's own rod, so the odds reported are the odds they will get.
+        ToDoubleFunction<Rarity> chanceOf = RodChances.of(player, settings.get(), kinds.get());
         List<Chance> chances = FishSelector.chances(fish.get().all(), spot,
-                levels.levelOf(player.getUniqueId()),
-                RodChances.of(player, settings.get(), kinds.get()));
+                levels.levelOf(player.getUniqueId()), chanceOf);
         if (chances.isEmpty()) {
             player.sendMessage(error("Nothing lives here. Vanilla keeps the catch."));
             return;
         }
 
-        player.sendMessage(heading("Chances"));
+        tiers(player, chances, chanceOf);
+    }
+
+    /**
+     * The draw as it actually happens: the tier first, then the entry within it.
+     *
+     * <p>Reported the same way round, because a flat list of fish hides the thing
+     * worth knowing - whether a fish is unlikely because its tier is, or because it
+     * shares that tier with six others.
+     *
+     * <p>The tier percentages are the fish percentages added up, not a second sum
+     * worked out from the config, so what this says and what the water gives cannot
+     * come apart.
+     */
+    private void tiers(Player player, List<Chance> chances, ToDoubleFunction<Rarity> chanceOf) {
+        Map<Rarity, List<Chance>> byTier = new EnumMap<>(Rarity.class);
         for (Chance chance : chances) {
-            player.sendMessage(Component.text("  ")
-                    .append(Component.text(String.format(Locale.ROOT, "%5.1f%%", chance.percent()),
-                            NamedTextColor.WHITE))
-                    .append(Component.text("  " + chance.fish().id(), NamedTextColor.GRAY))
-                    .append(Component.text("  weight " + chance.weight()
-                                    + ", " + chance.fish().rarity().configName()
-                                    + ", level " + chance.fish().level(),
-                            NamedTextColor.DARK_GRAY)));
+            byTier.computeIfAbsent(chance.fish().rarity(), tier -> new ArrayList<>()).add(chance);
         }
+
+        List<Map.Entry<Rarity, List<Chance>>> ordered = new ArrayList<>(byTier.entrySet());
+        ordered.sort(Comparator.comparingDouble(
+                (Map.Entry<Rarity, List<Chance>> entry) -> share(entry.getValue())).reversed());
+
+        player.sendMessage(heading("Chances by tier"));
+        for (Map.Entry<Rarity, List<Chance>> entry : ordered) {
+            List<Chance> inTier = entry.getValue();
+            player.sendMessage(Component.text("  ")
+                    .append(Component.text(String.format(Locale.ROOT, "%5.1f%%", share(inTier)),
+                            NamedTextColor.WHITE))
+                    .append(Component.text("  " + entry.getKey().configName(), NamedTextColor.AQUA))
+                    .append(Component.text("  " + inTier.size()
+                            + (inTier.size() == 1 ? " entry here" : " entries here"),
+                            NamedTextColor.DARK_GRAY)));
+
+            for (Chance chance : inTier) {
+                player.sendMessage(Component.text("      ")
+                        .append(Component.text(String.format(Locale.ROOT, "%5.1f%%", chance.percent()),
+                                NamedTextColor.GRAY))
+                        .append(Component.text("  " + chance.fish().id(), NamedTextColor.GRAY))
+                        .append(Component.text("  weight " + chance.weight()
+                                        + ", level " + chance.fish().level(),
+                                NamedTextColor.DARK_GRAY)));
+            }
+        }
+
+        absent(player, byTier.keySet(), chanceOf);
+    }
+
+    /**
+     * What the tiers with nothing here are worth, and where that weight went.
+     *
+     * <p>Worth a line of its own: a spot where half the table is missing reads as
+     * a spot full of junk, and this is the only place that says why.
+     */
+    private void absent(Player player, Set<Rarity> present, ToDoubleFunction<Rarity> chanceOf) {
+        List<String> missing = new ArrayList<>();
+        double forfeited = 0;
+        for (Rarity rarity : Rarity.values()) {
+            double chance = Math.max(0, chanceOf.applyAsDouble(rarity));
+            if (chance > 0 && !present.contains(rarity)) {
+                missing.add(rarity.configName());
+                forfeited += chance;
+            }
+        }
+        if (missing.isEmpty()) {
+            return;
+        }
+
+        String weight = String.format(Locale.ROOT, "%.1f", forfeited);
+        player.sendMessage(detail("not here", String.join(", ", missing)));
+        player.sendMessage(detail("their " + weight + " weight", present.contains(Rarity.MISC)
+                ? "went to misc, which is why junk reads high here"
+                : "is not drawn at all - there is no junk here to stand in for it"));
+    }
+
+    /** A tier's own odds: what everything in it comes to. */
+    private static double share(List<Chance> inTier) {
+        double total = 0;
+        for (Chance chance : inTier) {
+            total += chance.percent();
+        }
+        return total;
     }
 
     // ----------------------------------------------------------------- swarm

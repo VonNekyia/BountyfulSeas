@@ -18,7 +18,7 @@ european_perch:
   condition: [day]
 
   spawn_weight: 125
-  rarity: "uncommon"
+  rarity: "common"
 
   on_eat:
     saturation: 4
@@ -39,7 +39,7 @@ flathead_grey_mullet:
   water_type: [ocean, river]
 
   spawn_weight: 110
-  rarity: "uncommon"
+  rarity: "common"
 
   on_eat:
     saturation: 4
@@ -129,7 +129,7 @@ european_seabass:
   vegetation: [temperate]
 
   spawn_weight: 75
-  rarity: "rare"
+  rarity: "uncommon"
 
   on_eat:
     saturation: 5

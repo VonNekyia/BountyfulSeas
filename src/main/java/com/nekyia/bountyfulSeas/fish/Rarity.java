@@ -19,6 +19,9 @@ package com.nekyia.bountyfulSeas.fish;
 public enum Rarity implements ConfigValue {
 
     /** The everyday catch, and the first thing spent on better ones. */
+    COMMON,
+
+    /** A step up from everyday: still no trouble to find, still nothing to frame. */
     UNCOMMON,
 
     RARE,

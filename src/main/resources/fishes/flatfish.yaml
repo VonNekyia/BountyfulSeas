@@ -17,7 +17,7 @@ european_plaice:
   vegetation: [cold, temperate]
 
   spawn_weight: 65
-  rarity: "rare"
+  rarity: "uncommon"
 
   on_eat:
     saturation: 4

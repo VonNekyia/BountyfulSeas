@@ -40,7 +40,7 @@ brown_trout:
   vegetation: [cold, temperate]
 
   spawn_weight: 90
-  rarity: "rare"
+  rarity: "uncommon"
 
   on_eat:
     saturation: 5
@@ -62,7 +62,7 @@ rainbow_trout:
   vegetation: [cold, temperate]
 
   spawn_weight: 80
-  rarity: "rare"
+  rarity: "uncommon"
 
   on_eat:
     saturation: 5
@@ -129,7 +129,7 @@ atlantic_salmon:
   vegetation: [cold, temperate]
 
   spawn_weight: 30
-  rarity: "epic"
+  rarity: "rare"
 
   on_eat:
     saturation: 6

@@ -18,7 +18,7 @@ polar_cod:
   modifier: [ice]
 
   spawn_weight: 100
-  rarity: "uncommon"
+  rarity: "common"
 
   on_eat:
     saturation: 3

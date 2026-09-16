@@ -1,0 +1,18 @@
+# Abfall - Junk: what comes up when it is not a fish.
+#
+# The misc tier marks an entry as not-a-fish. It carries no length, so no
+# max_length, no measurement in chat and no record to beat.
+#
+# Junk is also what stands in for a tier that has nothing at a spot: water with no
+# rare fish in it hands up one of these where the rare would have been. That only
+# works while something is in here, so an empty junk file quietly turns the rule
+# off - the share is simply not drawn and the remaining tiers share it out.
+
+silver_corroded:
+  fish_name: "<dark_gray>korrodierte Silbermünze</dark_gray>"
+  fish_item: "nexo:silver_corroded"
+  lore:
+    - "Somebody paid the sea, a long time ago."
+
+  spawn_weight: 100
+  rarity: misc

@@ -20,7 +20,7 @@ atlantic_herring:
   modifier: [swarm]
 
   spawn_weight: 140
-  rarity: "uncommon"
+  rarity: "common"
 
   on_eat:
     saturation: 3
@@ -43,7 +43,7 @@ european_pilchard:
   modifier: [swarm]
 
   spawn_weight: 135
-  rarity: "uncommon"
+  rarity: "common"
 
   on_eat:
     saturation: 2
@@ -92,7 +92,7 @@ anglerfish:
   depth: [deep]
 
   spawn_weight: 70
-  rarity: "uncommon"
+  rarity: "epic"
 
   on_eat:
     saturation: 5

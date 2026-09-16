@@ -20,7 +20,7 @@ eurasian_minnow:
   condition: [day]
 
   spawn_weight: 150
-  rarity: "uncommon"
+  rarity: "common"
 
   on_eat:
     saturation: 1
@@ -42,7 +42,7 @@ common_roach:
   vegetation: [temperate]
 
   spawn_weight: 145
-  rarity: "uncommon"
+  rarity: "common"
 
   on_eat:
     saturation: 3
@@ -66,7 +66,7 @@ common_rudd:
   condition: [day]
 
   spawn_weight: 115
-  rarity: "uncommon"
+  rarity: "common"
 
   on_eat:
     saturation: 3
@@ -88,7 +88,7 @@ crucian_carp:
   depth: [shallow]
 
   spawn_weight: 110
-  rarity: "uncommon"
+  rarity: "common"
 
   on_eat:
     saturation: 3
@@ -110,7 +110,7 @@ goldfish:
   depth: [shallow]
 
   spawn_weight: 95
-  rarity: "uncommon"
+  rarity: "common"
 
 # Döbel — Squalius cephalus
 # Rekordlänge (TL): etwa 60 cm — Quelle: FishBase Species Summary, Squalius cephalus
@@ -129,7 +129,7 @@ european_chub:
   vegetation: [temperate]
 
   spawn_weight: 130
-  rarity: "uncommon"
+  rarity: "common"
 
   on_eat:
     saturation: 4

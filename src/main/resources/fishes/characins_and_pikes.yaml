@@ -58,7 +58,7 @@ northern_pike:
   water_type: [river, lake]
 
   spawn_weight: 25
-  rarity: "epic"
+  rarity: "rare"
 
   on_eat:
     saturation: 5
