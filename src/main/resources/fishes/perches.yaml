@@ -11,7 +11,7 @@ european_perch:
   fish_item: "nexo:european_perch"
 
   max_length: 61
-  level: 15
+  level: 8
 
   water_type: [river, lake]
   vegetation: [cold, temperate]
@@ -55,7 +55,7 @@ ocellaris_clownfish:
   fish_item: "nexo:ocellaris_clownfish"
 
   max_length: 12
-  level: 15
+  level: 6
 
   water_type: [ocean]
   vegetation: [warm]
@@ -101,7 +101,7 @@ stoplight_parrotfish:
   fish_item: "nexo:stoplight_parrotfish"
 
   max_length: 65
-  level: 15
+  level: 3
 
   water_type: [ocean]
   vegetation: [warm]

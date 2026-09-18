@@ -56,7 +56,7 @@ rainbow_trout:
   fish_item: "nexo:rainbow_trout"
 
   max_length: 123
-  level: 15
+  level: 13
 
   water_type: [river, lake]
   vegetation: [cold, temperate]

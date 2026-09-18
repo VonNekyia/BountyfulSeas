@@ -79,7 +79,7 @@ arapaima:
   fish_item: "nexo:arapaima"
 
   max_length: 451
-  level: 15
+  level: 10
 
   water_type: [river, lake]
   vegetation: [warm]
