@@ -266,7 +266,10 @@ enchantments:
     bonus-per-level: 10
 
   luck-of-the-sea:
-    # Treasure, and only treasure - that is where the enchanted books are.
+    # Treasure, where the enchanted books are - and anything carrying a catch_chance
+    # of its own, such as a mythic. Those are drawn before the tiers are, so the
+    # bonus reaches them directly rather than through a tier weight: at 10, a fish
+    # at 0.25% reads 0.275% with Luck of the Sea I and 0.325% at the vanilla III.
     bonus-per-level: 10
 
   lure:
