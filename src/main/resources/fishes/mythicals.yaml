@@ -8,7 +8,7 @@
 # Every condition listed has to hold at once, so night and storm means both.
 
 mythical_dreamer_anglerfish:
-  fish_name: "<gradient:#3B2E6E:#9C7BFF:#3B2E6E><bold>Mythical Dreamer Anglerfish</bold></gradient>"
+  fish_name: "<gradient:#3B2E6E:#9C7BFF:#3B2E6E><bold>Dreamer Anglerfish</bold></gradient>"
   fish_item: "nexo:mythical_dreamer_anglerfish"
   lore:
     - "Es traeumt im Dunkeln, und manchmal traeumt es von dir."
