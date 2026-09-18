@@ -6,6 +6,7 @@ import com.nekyia.bountyfulSeas.fish.Fish;
 import com.nekyia.bountyfulSeas.fish.FishLibrary;
 import com.nekyia.bountyfulSeas.fish.Rarity;
 import com.nekyia.bountyfulSeas.fish.TierKinds;
+import com.nekyia.bountyfulSeas.fishing.CatchOdds;
 import com.nekyia.bountyfulSeas.fishing.Chance;
 import com.nekyia.bountyfulSeas.fish.Modifier;
 import com.nekyia.bountyfulSeas.fishing.FishSelector;
@@ -252,16 +253,15 @@ final class DebugCommand {
         }
 
         // The player's own rod, so the odds reported are the odds they will get.
-        ToDoubleFunction<Rarity> chanceOf = RodChances.of(player, settings.get(), kinds.get());
+        CatchOdds odds = RodChances.oddsFor(player, settings.get(), kinds.get());
         List<Chance> chances = FishSelector.chances(fish.get().all(), spot,
-                levels.levelOf(player.getUniqueId()), chanceOf,
-                RodChances.seaLuck(player, settings.get()));
+                levels.levelOf(player.getUniqueId()), odds);
         if (chances.isEmpty()) {
             player.sendMessage(error("Nothing lives here. Vanilla keeps the catch."));
             return;
         }
 
-        tiers(player, chances, chanceOf);
+        tiers(player, chances, odds);
         outOfReach(player, spot, levels.levelOf(player.getUniqueId()));
     }
 
@@ -328,8 +328,7 @@ final class DebugCommand {
         }
 
         new RegionsMenu(player, map, fish.get(),
-                RodChances.of(player, settings.get(), kinds.get()),
-                RodChances.seaLuck(player, settings.get()), asked,
+                RodChances.oddsFor(player, settings.get(), kinds.get()), asked,
                 EnumSet.noneOf(Modifier.class),
                 WaterSpot.conditionsOf(player.getWorld())).open();
     }
@@ -345,7 +344,7 @@ final class DebugCommand {
      * worked out from the config, so what this says and what the water gives cannot
      * come apart.
      */
-    private void tiers(Player player, List<Chance> chances, ToDoubleFunction<Rarity> chanceOf) {
+    private void tiers(Player player, List<Chance> chances, CatchOdds odds) {
         Map<Rarity, List<Chance>> byTier = new EnumMap<>(Rarity.class);
         for (Chance chance : chances) {
             byTier.computeIfAbsent(chance.fish().rarity(), tier -> new ArrayList<>()).add(chance);
@@ -377,7 +376,7 @@ final class DebugCommand {
             }
         }
 
-        absent(player, byTier.keySet(), chanceOf);
+        absent(player, byTier.keySet(), odds);
     }
 
     /**
@@ -386,11 +385,11 @@ final class DebugCommand {
      * <p>Worth a line of its own: a spot where half the table is missing reads as
      * a spot full of junk, and this is the only place that says why.
      */
-    private void absent(Player player, Set<Rarity> present, ToDoubleFunction<Rarity> chanceOf) {
+    private void absent(Player player, Set<Rarity> present, CatchOdds odds) {
         List<String> missing = new ArrayList<>();
         double forfeited = 0;
         for (Rarity rarity : Rarity.values()) {
-            double chance = Math.max(0, chanceOf.applyAsDouble(rarity));
+            double chance = Math.max(0, odds.bare().applyAsDouble(rarity));
             if (chance > 0 && !present.contains(rarity)) {
                 missing.add(rarity.configName());
                 forfeited += chance;

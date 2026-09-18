@@ -3,6 +3,7 @@ package com.nekyia.bountyfulSeas;
 import com.nekyia.bountyfulSeas.config.Settings;
 import com.nekyia.bountyfulSeas.enchantment.FishingEnchantments;
 import com.nekyia.bountyfulSeas.fish.Rarity;
+import com.nekyia.bountyfulSeas.fishing.CatchOdds;
 import com.nekyia.bountyfulSeas.fish.TierKinds;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
@@ -63,6 +64,25 @@ final class RodChances {
     }
 
     /**
+     * Everything the draw needs to know about a rod, in one piece.
+     *
+     * <p>The unenchanted table travels with the enchanted one because a tier that is
+     * not at a spot hands its share to junk, and what it hands over has to be what
+     * it was worth before the rod: see {@link CatchOdds}.
+     */
+    static CatchOdds oddsFor(Player player, Settings settings, TierKinds kinds) {
+        ItemStack rod = rodOf(player);
+        int fishLevel = FishingEnchantments.LUCK_OF_THE_FISH.levelOn(rod);
+        int seaLevel = levelOf(rod, Enchantment.LUCK_OF_THE_SEA);
+        int lureLevel = levelOf(rod, Enchantment.LURE);
+
+        ToDoubleFunction<Rarity> bare = of(null, settings, kinds);
+        return new CatchOdds(
+                present -> weightsFor(fishLevel, seaLevel, lureLevel, settings, kinds, present),
+                bare, seaLuck(player, settings));
+    }
+
+    /**
      * What Luck of the Sea does to a fish that carries its own chance.
      *
      * <p>Those fish sit outside the tier weights - they are drawn before the tiers
@@ -78,27 +98,62 @@ final class RodChances {
 
     /** Exposed for reporting, so what is shown is what will be rolled. */
     static Map<Rarity, Double> weightsFor(Player player, Settings settings, TierKinds kinds) {
+        ItemStack rod = rodOf(player);
+        return weightsFor(FishingEnchantments.LUCK_OF_THE_FISH.levelOn(rod),
+                levelOf(rod, Enchantment.LUCK_OF_THE_SEA),
+                levelOf(rod, Enchantment.LURE), settings, kinds);
+    }
+
+    /**
+     * The same, from the enchantment levels alone.
+     *
+     * <p>Split out from the rod so the table can be worked out - and checked -
+     * without a player holding anything.
+     */
+    static Map<Rarity, Double> weightsFor(int fishLevel, int seaLevel, int lureLevel,
+                                          Settings settings, TierKinds kinds) {
+        return weightsFor(fishLevel, seaLevel, lureLevel, settings, kinds, null);
+    }
+
+    /**
+     * The same, for one spot.
+     *
+     * <p>Only the tiers on offer take part. A rod that lifts the rarest fish is
+     * worth nothing where none live, and must cost nothing there either - the
+     * everyday tiers pay for what the rod adds, and they should not be paying for a
+     * legendary that was never on the table. Left null, every tier takes part,
+     * which is the table in the abstract rather than at any particular spot.
+     *
+     * @param present the tiers with something to offer, or null for all of them
+     */
+    static Map<Rarity, Double> weightsFor(int fishLevel, int seaLevel, int lureLevel,
+                                          Settings settings, TierKinds kinds,
+                                          java.util.Set<Rarity> present) {
         Map<Rarity, Double> base = new EnumMap<>(Rarity.class);
         for (Rarity rarity : Rarity.values()) {
-            base.put(rarity, settings.chanceOf(rarity.configName()));
+            base.put(rarity, present == null || present.contains(rarity)
+                    ? settings.chanceOf(rarity.configName())
+                    : 0);
         }
 
         // A tier at zero takes no part at all: it is neither lifted nor spent, which
         // is how a tier is switched off without having to say so twice.
+        // Which fish tiers the enchantment reaches at all. Named by the commonest
+        // one it touches, so "from epic" means epic and everything rarer - said as a
+        // tier rather than as a list, so adding a tier does not mean editing one.
+        double liftedFrom = liftFloor(base, settings.enchantments().fishLiftsFrom());
+
         Rarity fishPays = commonest(base, kinds::isFish);
         Rarity fishKeeps = rarest(base, kinds::isFish);
         Rarity objectPays = commonest(base, kinds::isObject);
         Rarity objectKeeps = rarest(base, kinds::isObject);
 
-        ItemStack rod = rodOf(player);
         Settings.EnchantmentSettings bonuses = settings.enchantments();
 
         // Lure is off by default and does the same job as Luck of the Fish when
         // switched on, so the two multiply into one figure for the fish side.
-        double fishLuck = bonuses.lureMultiplier(levelOf(rod, Enchantment.LURE))
-                * bonuses.fishMultiplier(
-                        FishingEnchantments.LUCK_OF_THE_FISH.levelOn(rod));
-        double seaLuck = bonuses.luckMultiplier(levelOf(rod, Enchantment.LUCK_OF_THE_SEA));
+        double fishLuck = bonuses.lureMultiplier(lureLevel) * bonuses.fishMultiplier(fishLevel);
+        double seaLuck = bonuses.luckMultiplier(seaLevel);
 
         Map<Rarity, Double> weights = new EnumMap<>(Rarity.class);
         double owed = 0;
@@ -106,7 +161,7 @@ final class RodChances {
         for (Rarity rarity : Rarity.values()) {
             double chance = base.get(rarity);
             double multiplier = 1;
-            if (chance > 0 && kinds.isFish(rarity) && rarity != fishPays) {
+            if (chance > 0 && kinds.isFish(rarity) && rarity != fishPays && chance <= liftedFrom) {
                 multiplier = fishLuck;
             } else if (chance > 0 && kinds.isObject(rarity) && rarity != objectPays) {
                 multiplier = seaLuck;
@@ -118,7 +173,26 @@ final class RodChances {
         }
 
         drain(weights, payers(base, fishKeeps, objectKeeps), owed);
+        if (present != null) {
+            weights.keySet().retainAll(present);
+        }
         return weights;
+    }
+
+    /**
+     * The weight at and below which Luck of the Fish applies.
+     *
+     * <p>A rarer tier is a smaller weight, so "epic and rarer" is "no more than what
+     * epic is worth". A tier the config does not know leaves the enchantment
+     * reaching nothing, which is safer than reaching everything.
+     */
+    private static double liftFloor(Map<Rarity, Double> base, String named) {
+        for (Rarity rarity : Rarity.values()) {
+            if (rarity.configName().equals(named)) {
+                return base.getOrDefault(rarity, 0.0);
+            }
+        }
+        return 0;
     }
 
     /**

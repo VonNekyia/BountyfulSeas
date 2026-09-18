@@ -83,12 +83,16 @@ public record Settings(
      *
      * @param lurePerLevel percent added per Lure level, to the same tiers as Luck of the Fish
      * @param luckPerLevel percent added per Luck of the Sea level, to treasure
-     * @param fishPerLevel percent added per Luck of the Fish level, to rare, epic and legendary
+     * @param fishPerLevel percent added per Luck of the Fish level
+     * @param fishLiftsFrom the commonest tier Luck of the Fish reaches, by config name;
+     *                      that tier and everything rarer than it are lifted, and
+     *                      everything more ordinary is left alone
      */
     public record EnchantmentSettings(
             double lurePerLevel,
             double luckPerLevel,
-            double fishPerLevel
+            double fishPerLevel,
+            String fishLiftsFrom
     ) {
 
         /** The multiplier a rod with this much Lure applies. */

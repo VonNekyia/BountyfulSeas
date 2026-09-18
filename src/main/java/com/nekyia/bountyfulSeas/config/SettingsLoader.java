@@ -1,5 +1,6 @@
 package com.nekyia.bountyfulSeas.config;
 
+import com.nekyia.bountyfulSeas.fish.Rarity;
 import com.nekyia.bountyfulSeas.level.CompletionRule;
 import com.nekyia.bountyfulSeas.level.LevelCurve;
 import com.nekyia.bountyfulSeas.stats.Milestone;
@@ -257,7 +258,27 @@ public final class SettingsLoader {
         return new Settings.EnchantmentSettings(
                 percent(config, "enchantments.lure.bonus-per-level", 0, problems),
                 percent(config, "enchantments.luck-of-the-sea.bonus-per-level", 10, problems),
-                percent(config, "enchantments.luck-of-the-fish.bonus-per-level", 10, problems));
+                percent(config, "enchantments.luck-of-the-fish.bonus-per-level", 10, problems),
+                tierName(config, "enchantments.luck-of-the-fish.lifts-from", "epic", problems));
+    }
+
+    /**
+     * A tier named in config, checked against the tiers there are.
+     *
+     * <p>Checked here rather than where it is used, because a name that matches
+     * nothing has to be reported once at load rather than quietly meaning nothing
+     * every time somebody casts.
+     */
+    private static String tierName(FileConfiguration config, String path, String fallback,
+                                   List<String> problems) {
+        String named = config.getString(path, fallback).trim().toLowerCase(Locale.ROOT);
+        for (Rarity rarity : Rarity.values()) {
+            if (rarity.configName().equals(named)) {
+                return named;
+            }
+        }
+        problems.add(path + " was " + named + ", which is not a tier; using " + fallback);
+        return fallback;
     }
 
     private static double percent(FileConfiguration config, String path, double fallback,

@@ -260,10 +260,17 @@ rarity-chances:
 enchantments:
   luck-of-the-fish:
     # The plugin's own enchantment, registered at startup and obtainable from an
-    # enchanting table like any other. Raises rare, epic and legendary only. Not
-    # misc, not treasure - and not mythic, so that no enchantment can make the
-    # rarest catch ordinary. Levels I to V, so +50% of base at full.
+    # enchanting table like any other. Levels I to V, so +50% of base at full.
     bonus-per-level: 10
+
+    # The commonest tier it reaches: that one and everything rarer than it. Named as
+    # a tier rather than listed, so adding a tier does not mean editing this line.
+    #
+    # Everything more ordinary than this is left alone entirely - an enchantment
+    # bought for better fish should not be quietly moving the everyday ones about.
+    # What it adds is still taken back out of the common tiers, so the table still
+    # comes to what it did.
+    lifts-from: epic
 
   luck-of-the-sea:
     # Treasure, where the enchanted books are - and anything carrying a catch_chance

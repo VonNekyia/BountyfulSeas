@@ -128,8 +128,7 @@ final class FishingListener implements Listener {
         Fish picked = arranged == null
                 ? FishSelector.select(fish.get().all(), spot,
                         levels.levelOf(event.getPlayer().getUniqueId()),
-                        RodChances.of(event.getPlayer(), settings.get(), kinds.get()),
-                        RodChances.seaLuck(event.getPlayer(), settings.get()),
+                        RodChances.oddsFor(event.getPlayer(), settings.get(), kinds.get()),
                         ThreadLocalRandom.current())
                 : fish.get().get(arranged.fishId());
         if (picked == null) {

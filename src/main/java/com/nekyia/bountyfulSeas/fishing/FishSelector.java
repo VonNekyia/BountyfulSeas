@@ -71,17 +71,12 @@ public final class FishSelector {
      */
     public static List<Chance> chances(Collection<Fish> fishes, WaterConditions where,
                                        int anglerLevel, ToDoubleFunction<Rarity> chanceOf) {
-        return chances(fishes, where, anglerLevel, chanceOf, 1);
+        return chances(fishes, where, anglerLevel, CatchOdds.of(chanceOf));
     }
 
-    /**
-     * The same, with a rod in it.
-     *
-     * @param ownChanceLuck what the rod does to a fish that carries its own chance
-     */
+    /** The same, with a particular rod in it. */
     public static List<Chance> chances(Collection<Fish> fishes, WaterConditions where,
-                                       int anglerLevel, ToDoubleFunction<Rarity> chanceOf,
-                                       double ownChanceLuck) {
+                                       int anglerLevel, CatchOdds odds) {
         List<Fish> candidates = candidates(fishes, where, anglerLevel);
         if (candidates.isEmpty()) {
             return List.of();
@@ -93,7 +88,7 @@ public final class FishSelector {
         double spoken = 0;
         for (Fish fish : candidates) {
             if (fish.hasOwnChance()) {
-                double percent = ownChance(fish, ownChanceLuck);
+                double percent = ownChance(fish, odds.ownChanceLuck());
                 spoken += percent;
                 chances.add(new Chance(fish, fish.spawnWeight(), percent));
             }
@@ -111,7 +106,7 @@ public final class FishSelector {
             return List.copyOf(chances);
         }
 
-        Map<Rarity, Double> tiers = tierChances(byRarity.keySet(), chanceOf);
+        Map<Rarity, Double> tiers = tierChances(byRarity.keySet(), odds);
         double tierTotal = 0;
         for (double chance : tiers.values()) {
             tierTotal += chance;
@@ -156,17 +151,12 @@ public final class FishSelector {
      */
     public static Fish select(Collection<Fish> fishes, WaterConditions where, int anglerLevel,
                               ToDoubleFunction<Rarity> chanceOf, RandomGenerator random) {
-        return select(fishes, where, anglerLevel, chanceOf, 1, random);
+        return select(fishes, where, anglerLevel, CatchOdds.of(chanceOf), random);
     }
 
-    /**
-     * The same, with a rod in it.
-     *
-     * @param ownChanceLuck what the rod does to a fish that carries its own chance
-     */
+    /** The same, with a particular rod in it. */
     public static Fish select(Collection<Fish> fishes, WaterConditions where, int anglerLevel,
-                              ToDoubleFunction<Rarity> chanceOf, double ownChanceLuck,
-                              RandomGenerator random) {
+                              CatchOdds odds, RandomGenerator random) {
         List<Fish> candidates = candidates(fishes, where, anglerLevel);
         if (candidates.isEmpty()) {
             return null;
@@ -180,7 +170,7 @@ public final class FishSelector {
             if (!fish.hasOwnChance()) {
                 continue;
             }
-            double percent = ownChance(fish, ownChanceLuck);
+            double percent = ownChance(fish, odds.ownChanceLuck());
             if (roll < percent) {
                 return fish;
             }
@@ -197,7 +187,7 @@ public final class FishSelector {
             return null;
         }
 
-        Rarity tier = rollRarity(tierChances(byRarity.keySet(), chanceOf), random);
+        Rarity tier = rollRarity(tierChances(byRarity.keySet(), odds), random);
         return tier == null ? null : rollWithin(byRarity.get(tier), random);
     }
 
@@ -222,17 +212,20 @@ public final class FishSelector {
      * <p>Where there is no junk here either, the share is not drawn at all and what
      * is left normalises against itself - the only honest answer when a spot holds
      * nothing that could stand in.
+     *
+     * <p>Only the unenchanted weight is handed over. What a rod adds to a tier that
+     * is not here is simply not in play: it is neither drawn nor given away.
      */
-    public static Map<Rarity, Double> tierChances(Set<Rarity> present,
-                                                  ToDoubleFunction<Rarity> chanceOf) {
-        Map<Rarity, Double> tiers = new EnumMap<>(Rarity.class);
+    public static Map<Rarity, Double> tierChances(Set<Rarity> present, CatchOdds odds) {
+        Map<Rarity, Double> tiers = new EnumMap<>(odds.onRod().at(present));
         double forfeited = 0;
         for (Rarity rarity : Rarity.values()) {
-            double chance = Math.max(0, chanceOf.applyAsDouble(rarity));
-            if (present.contains(rarity)) {
-                tiers.put(rarity, chance);
-            } else {
-                forfeited += chance;
+            if (!present.contains(rarity)) {
+                // What an absent tier hands over is what it was worth before the rod
+                // touched it. Handing over the enchanted weight would turn a rod
+                // bought for better fish into a rod for more junk, wherever the fish
+                // it lifts do not live - and that is most water, for a legendary.
+                forfeited += odds.bareWeightOf(rarity);
             }
         }
         if (forfeited > 0 && tiers.containsKey(Rarity.MISC)) {
