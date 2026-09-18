@@ -135,7 +135,9 @@ final class DebugCommand {
         String sub = args[0].toLowerCase(Locale.ROOT);
         if (args.length == 2) {
             return switch (sub) {
-                case "item", "set", "lengthvalue" -> starting(
+                case "set" -> starting(withEnds(
+                        fish.get().all().stream().map(Fish::id).sorted().toList()), args[1]);
+                case "item", "lengthvalue" -> starting(
                         fish.get().all().stream().map(Fish::id).sorted().toList(), args[1]);
                 case "enchant" -> starting(
                         allEnchantmentKeys(), args[1]);
@@ -161,6 +163,13 @@ final class DebugCommand {
         return levels;
     }
 
+    /** The fish ids, with the two words that stand for all of them at once. */
+    private static List<String> withEnds(List<String> ids) {
+        List<String> names = new ArrayList<>(List.of("all", "reset"));
+        names.addAll(ids);
+        return names;
+    }
+
     private static List<String> allEnchantmentKeys() {
         List<String> keys = new ArrayList<>();
         for (Enchantment enchantment : enchantments()) {
@@ -183,6 +192,8 @@ final class DebugCommand {
         player.sendMessage(detail("item <fish> [cm]", "make the next bite hand over this fish"));
         player.sendMessage(detail("enchant [enchantment] [level]", "enchant the rod you are holding"));
         player.sendMessage(detail("set <fish> <count>", "put your catch count at a number"));
+        player.sendMessage(detail("set all | set reset",
+                "put every count at the last milestone, or back to none"));
         player.sendMessage(detail("lengthvalue <fish> <cm>", "what a length of that fish amounts to"));
     }
 
@@ -652,8 +663,17 @@ final class DebugCommand {
 
     /** Puts a catch count where it is wanted, milestones and level and all. */
     private void set(Player player, String[] args) {
+        if (args.length == 1 && args[0].equalsIgnoreCase("all")) {
+            everything(player, Milestone.values()[Milestone.values().length - 1].required(),
+                    "every milestone");
+            return;
+        }
+        if (args.length == 1 && args[0].equalsIgnoreCase("reset")) {
+            everything(player, 0, "nothing caught");
+            return;
+        }
         if (args.length < 2) {
-            player.sendMessage(error("/bs debug set <fish> <count>"));
+            player.sendMessage(error("/bs debug set <fish> <count>, or set all, or set reset"));
             return;
         }
 
@@ -695,6 +715,50 @@ final class DebugCommand {
                             + (Milestone.next(count) == null
                                     ? "nothing left" : Milestone.next(count).required())));
             player.sendMessage(detail("your level", standing.level()
+                    + "   " + standing.experience() + " xp"));
+        });
+    }
+
+    /**
+     * Puts every fish at the same count at once, for testing the ends of the curve.
+     *
+     * <p>Both ends are worth having. Setting everything to the last milestone is the
+     * only way to see the top of the level curve without fishing for a month, and
+     * setting it back to nothing is the only way to see the first level again.
+     *
+     * <p>Objects are counted too: they carry milestones like anything else, and the
+     * curve is built counting them, so leaving them out would not be the top.
+     */
+    private void everything(Player player, long count, String what) {
+        List<Fish> all = List.copyOf(fish.get().all());
+        if (all.isEmpty()) {
+            player.sendMessage(error("There are no fish to set."));
+            return;
+        }
+
+        UUID id = player.getUniqueId();
+        player.sendMessage(detail("setting", all.size() + " entries to " + count
+                + "   (" + what + ")"));
+
+        offThread.accept(() -> {
+            Progress standing;
+            try {
+                for (Fish each : all) {
+                    counts.set(id, each.id(), count);
+                }
+                // Once, at the end: the level is derived from the counts, and working
+                // it out after every one of them would be fifty reads of the same row
+                // set to reach the same answer.
+                standing = levels.refresh(id);
+            } catch (RuntimeException failure) {
+                player.sendMessage(error("Could not set them: " + failure.getMessage()));
+                return;
+            }
+
+            player.sendMessage(heading("Counts set"));
+            player.sendMessage(detail("entries", all.size() + " at " + count + " caught"));
+            player.sendMessage(detail("your level", standing.level()
+                    + (standing.capped() ? "   (the highest there is)" : "")
                     + "   " + standing.experience() + " xp"));
         });
     }
