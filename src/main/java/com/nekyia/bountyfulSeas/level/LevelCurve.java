@@ -1,24 +1,23 @@
 package com.nekyia.bountyfulSeas.level;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
  * How much experience each level costs, worked out from the roster itself.
  *
- * <p>Every fifth level or so is anchored to what the roster is worth there: a share
- * of what one finished fish pays, times the fish open below it. The levels between
- * two anchors are smoothed, each step a little larger than the one before and the
- * first no larger than the last step before it, so the climb is felt as a climb
- * rather than as a wall at whichever level a band happened to begin.
+ * <p>The config says how deep into every open fish a level expects somebody to be -
+ * the second milestone by level three, the third by five, and so on. That, times the
+ * fish actually open below the level, is what the level would cost.
+ *
+ * <p>Would, because the raw numbers do not climb evenly. A milestone holds for three
+ * levels while the roster grows by four fish and then by two, so the cost per level
+ * lurches and sometimes falls. A level that costs less than the one before it is not
+ * a level. So the steps are smoothed until they never fall, staying as close to what
+ * the config asked for as that allows: the scale is the shape, not the arithmetic.
  *
  * <p>Nothing here is tuned by hand. The last level is the highest level any fish is
  * locked behind, and a fish added to a category or moved between levels retunes the
- * curve by itself.
- *
- * <p>Held as a table rather than a formula because the shape is not a formula: it
- * bends wherever the anchors do. Every threshold sits on a multiple of what a
- * milestone pays, because that is the only kind of number a player can stand on.
+ * whole curve by itself.
  */
 public final class LevelCurve {
 
@@ -54,80 +53,153 @@ public final class LevelCurve {
             open[level] += open[level - 1];
         }
 
-        long[] thresholds = new long[maxLevel + 1];
-        long total = 0;
-        double step = 0;
-        int at = FIRST_LEVEL;
-
-        for (CompletionRule.Anchor anchor : anchorsUpTo(demand, maxLevel)) {
-            int span = anchor.level() - at;
-            if (span <= 0) {
-                continue;
-            }
-            long target = Math.max(total, onGrid(
-                    anchor.share() * rule.upTo(anchor.completedAtStep()) * open[anchor.level() - 1],
-                    rule.perStep()));
-
-            // Steps grow by a fixed amount each level, starting from the last step
-            // taken, and have to add up to exactly what the anchor asks. Where that
-            // would mean shrinking steps - an anchor cheaper than the pace already
-            // set - the span is split evenly instead, which is the flattest honest
-            // answer and still lands on the anchor.
-            long gain = target - total;
-            double growth = 2 * (gain - span * step) / ((double) span * (span + 1));
-            if (growth < 0) {
-                step = (double) gain / span;
-                growth = 0;
-            }
-
-            double running = total;
-            for (int level = at + 1; level <= anchor.level(); level++) {
-                step += growth;
-                running += step;
-                thresholds[level] = onGrid(running, rule.perStep());
-            }
-            // The anchor is the number that matters; rounding must not drift off it.
-            thresholds[anchor.level()] = target;
-            total = target;
-            at = anchor.level();
+        // What the config asks for, before anything is made to behave.
+        double[] asked = new double[maxLevel + 1];
+        for (int level = FIRST_LEVEL + 1; level <= maxLevel; level++) {
+            asked[level] = depthAt(level, demand, rule) * open[level - 1];
         }
 
+        double[] steps = new double[maxLevel + 1];
         for (int level = FIRST_LEVEL + 1; level <= maxLevel; level++) {
-            thresholds[level] = Math.max(thresholds[level], thresholds[level - 1]);
+            steps[level] = Math.max(0, asked[level] - asked[level - 1]);
+        }
+        climb(steps, FIRST_LEVEL + 1, maxLevel);
+        lean(steps, FIRST_LEVEL + 1, maxLevel);
+
+        long[] thresholds = new long[maxLevel + 1];
+        long running = 0;
+        for (int level = FIRST_LEVEL + 1; level <= maxLevel; level++) {
+            // Snapped step by step rather than at the end: every experience anybody
+            // can hold is a multiple of what a milestone pays, so a threshold that is
+            // not one would never be landed on, only jumped past. Rounding each step
+            // also keeps them climbing, which rounding the totals would not.
+            running += onGrid(steps[level], rule.perStep());
+            thresholds[level] = running;
         }
         return new LevelCurve(thresholds);
     }
 
     /**
-     * The nearest experience a player can actually stand on.
+     * How deep into one fish a level expects somebody to be.
      *
-     * <p>Every milestone pays a multiple of the step, so every total anybody can
-     * hold is one too. A threshold of 108 would really be 110: the bar would never
-     * fill, it would jump past. Snapping says what is meant.
+     * <p>Read off the anchors, and between two of them read across: a config that
+     * names every level says exactly what it wants, and one that names every fifth
+     * still gives a slope rather than a staircase.
      */
+    private static double depthAt(int level, CompletionRule demand, ExperienceRule rule) {
+        List<CompletionRule.Anchor> anchors = demand.anchors();
+
+        CompletionRule.Anchor below = null;
+        CompletionRule.Anchor above = null;
+        for (CompletionRule.Anchor anchor : anchors) {
+            if (anchor.level() <= level) {
+                below = anchor;
+            } else if (above == null) {
+                above = anchor;
+            }
+        }
+
+        if (below != null && below.level() == level) {
+            return depth(below, rule);
+        }
+        if (below == null) {
+            // Below the first anchor the scale runs up from nothing, so the earliest
+            // levels are not all priced as though they were the first anchor.
+            double reach = (double) (level - FIRST_LEVEL) / (above.level() - FIRST_LEVEL);
+            return depth(above, rule) * reach;
+        }
+        if (above == null) {
+            return depth(below, rule);
+        }
+        double across = (double) (level - below.level()) / (above.level() - below.level());
+        return depth(below, rule) + across * (depth(above, rule) - depth(below, rule));
+    }
+
+    private static double depth(CompletionRule.Anchor anchor, ExperienceRule rule) {
+        return anchor.share() * rule.upTo(anchor.completedAtStep());
+    }
+
+    /**
+     * Makes a run of steps climb, changing them as little as possible.
+     *
+     * <p>Wherever a step would fall below the one before it, that step and the ones
+     * it argues with are replaced by their average - repeatedly, until the run only
+     * ever rises. That is the closest climbing sequence there is to the one asked
+     * for, and it keeps the sum: what the config wanted the last level to cost in
+     * total is still what it costs, only the way there has been made to behave.
+     */
+    private static void climb(double[] steps, int from, int to) {
+        int span = to - from + 1;
+        if (span <= 0) {
+            return;
+        }
+        double[] pooled = new double[span];
+        int[] held = new int[span];
+        int blocks = 0;
+
+        for (int at = from; at <= to; at++) {
+            double value = steps[at];
+            int count = 1;
+            while (blocks > 0 && pooled[blocks - 1] > value) {
+                blocks--;
+                value = (pooled[blocks] * held[blocks] + value * count) / (held[blocks] + count);
+                count += held[blocks];
+            }
+            pooled[blocks] = value;
+            held[blocks] = count;
+            blocks++;
+        }
+
+        int at = from;
+        for (int block = 0; block < blocks; block++) {
+            for (int each = 0; each < held[block]; each++) {
+                steps[at++] = pooled[block];
+            }
+        }
+    }
+
+    /**
+     * Fans out the runs the smoothing left flat, so no two levels cost the same.
+     *
+     * <p>Smoothing answers a plateau in the scale with a run of identical steps -
+     * four levels at 860 each - which is correct arithmetic and a poor level. Each
+     * such run is tilted around its own average: same total, but every level asks a
+     * little more than the one below it.
+     *
+     * <p>The tilt is held back wherever it would undo the smoothing, so a run never
+     * starts below where the one before it ended.
+     */
+    private static void lean(double[] steps, int from, int to) {
+        // A tenth either side of the average: enough to feel on any level worth
+        // levelling, small enough that it never argues with the scale.
+        final double spread = 0.20;
+
+        double last = 0;
+        int at = from;
+        while (at <= to) {
+            int end = at;
+            while (end + 1 <= to && steps[end + 1] == steps[at]) {
+                end++;
+            }
+            int run = end - at + 1;
+            if (run > 1) {
+                double flat = steps[at];
+                double reach = Math.min(spread * flat, 2 * (flat - last));
+                for (int each = 0; each < run; each++) {
+                    steps[at + each] = flat + reach * ((double) each / (run - 1) - 0.5);
+                }
+            }
+            last = steps[end];
+            at = end + 1;
+        }
+    }
+
+    /** The nearest step somebody can actually take, which is a multiple of the pay. */
     private static long onGrid(double experience, long perStep) {
         if (perStep <= 0) {
             return Math.round(experience);
         }
         return Math.round(experience / perStep) * perStep;
-    }
-
-    /**
-     * The anchors that fall inside the roster, with the last one carried up to the
-     * top level if the roster reaches past everything configured.
-     */
-    private static List<CompletionRule.Anchor> anchorsUpTo(CompletionRule demand, int maxLevel) {
-        List<CompletionRule.Anchor> kept = new ArrayList<>();
-        for (CompletionRule.Anchor anchor : demand.anchors()) {
-            if (anchor.level() > FIRST_LEVEL && anchor.level() < maxLevel) {
-                kept.add(anchor);
-            }
-        }
-        if (maxLevel > FIRST_LEVEL) {
-            CompletionRule.Anchor top = demand.last();
-            kept.add(new CompletionRule.Anchor(maxLevel, top.completedAtStep(), top.share()));
-        }
-        return kept;
     }
 
     /** The last level there is, which is the highest any fish is locked behind. */
