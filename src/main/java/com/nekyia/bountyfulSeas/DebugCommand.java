@@ -109,7 +109,7 @@ final class DebugCommand {
 
         switch (sub) {
             case "bobber" -> bobber(player);
-            case "regions" -> regions(player);
+            case "regions" -> regions(player, rest);
             case "swarm" -> swarm(player);
             case "item" -> item(player, rest);
             case "enchant" -> enchant(player, rest);
@@ -139,10 +139,26 @@ final class DebugCommand {
                         fish.get().all().stream().map(Fish::id).sorted().toList(), args[1]);
                 case "enchant" -> starting(
                         allEnchantmentKeys(), args[1]);
+                case "regions" -> starting(levelsToTry(), args[1]);
                 default -> List.of();
             };
         }
         return List.of();
+    }
+
+    /**
+     * Every level the roster actually locks something behind, for completion.
+     *
+     * <p>The levels in between are not offered, not because they are wrong to type
+     * but because nothing changes at them - the menu would look the same.
+     */
+    private List<String> levelsToTry() {
+        List<Integer> found = fish.get().all().stream().map(Fish::level).distinct().sorted().toList();
+        List<String> levels = new ArrayList<>();
+        for (int level : found) {
+            levels.add(String.valueOf(level));
+        }
+        return levels;
     }
 
     private static List<String> allEnchantmentKeys() {
@@ -162,7 +178,7 @@ final class DebugCommand {
     private void usage(Player player) {
         player.sendMessage(heading("Debug"));
         player.sendMessage(detail("bobber", "what can be caught where your bobber is"));
-        player.sendMessage(detail("regions", "every kind of water there is, and what bites in it"));
+        player.sendMessage(detail("regions [level]", "every kind of water there is, and what bites in it"));
         player.sendMessage(detail("swarm", "where every swarm is right now"));
         player.sendMessage(detail("item <fish> [cm]", "make the next bite hand over this fish"));
         player.sendMessage(detail("enchant [enchantment] [level]", "enchant the rod you are holding"));
@@ -269,7 +285,7 @@ final class DebugCommand {
      * nothing - and because the modifiers are worth turning on and off while
      * looking at the answer.
      */
-    private void regions(Player player) {
+    private void regions(Player player, String[] args) {
         WaterMap map = waterMap.get();
         if (map == null) {
             player.sendMessage(error("No water map is loaded, so there are no regions to show."));
@@ -280,9 +296,27 @@ final class DebugCommand {
             return;
         }
 
+        int standing = levels.levelOf(player.getUniqueId());
+        int asked = standing;
+        if (args.length > 0) {
+            try {
+                asked = Integer.parseInt(args[0]);
+            } catch (NumberFormatException notANumber) {
+                player.sendMessage(error("A level is a number, not \"" + args[0] + "\"."));
+                return;
+            }
+            if (asked < 1) {
+                player.sendMessage(error("There is no level below 1."));
+                return;
+            }
+            if (asked != standing) {
+                player.sendMessage(detail("looking as", "a level " + asked + " angler"
+                        + "   (you are " + standing + ")"));
+            }
+        }
+
         new RegionsMenu(player, map, fish.get(),
-                RodChances.of(player, settings.get(), kinds.get()),
-                levels.levelOf(player.getUniqueId()),
+                RodChances.of(player, settings.get(), kinds.get()), asked,
                 EnumSet.noneOf(Modifier.class),
                 WaterSpot.conditionsOf(player.getWorld())).open();
     }

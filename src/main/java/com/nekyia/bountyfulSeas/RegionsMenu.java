@@ -128,6 +128,7 @@ final class RegionsMenu extends RoseGUI {
                 .addLore(
                         line(map.regionCount() + " scanned regions, tallied into "
                                 + found.size() + " kinds of water", NamedTextColor.GRAY),
+                        line("read as a level " + anglerLevel + " angler", NamedTextColor.GRAY),
                         blank(),
                         line("a barrier means nothing bites there", NamedTextColor.DARK_GRAY),
                         line("with the toggles as they stand", NamedTextColor.DARK_GRAY),
@@ -251,7 +252,7 @@ final class RegionsMenu extends RoseGUI {
                 lore.add(line("  and " + (chances.size() - 3) + " more", NamedTextColor.DARK_GRAY));
             }
             if (!locked.isEmpty()) {
-                lore.add(line(locked.size() + " out of reach at your level",
+                lore.add(line(locked.size() + " out of reach at level " + anglerLevel,
                         NamedTextColor.YELLOW));
             }
         }

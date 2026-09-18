@@ -119,7 +119,8 @@ final class RegionFishMenu extends RoseGUI {
                         RegionsMenu.blank(),
                         RegionsMenu.line(chances.size() + " biting, " + locked.size()
                                 + " out of reach", NamedTextColor.DARK_GRAY),
-                        RegionsMenu.line("you are level " + anglerLevel, NamedTextColor.DARK_GRAY))
+                        RegionsMenu.line("read as a level " + anglerLevel + " angler",
+                                NamedTextColor.DARK_GRAY))
                 .build());
     }
 
@@ -167,10 +168,10 @@ final class RegionFishMenu extends RoseGUI {
                 .material(Material.GRAY_DYE)
                 .displayName(FishNames.unknown(fish))
                 .addLore(
-                        RegionsMenu.line("level " + fish.level()
-                                + "   you are " + anglerLevel, NamedTextColor.RED),
+                        RegionsMenu.line("opens at level " + fish.level()
+                                + "   reading as " + anglerLevel, NamedTextColor.RED),
                         RegionsMenu.blank(),
-                        RegionsMenu.line("it lives here, it is just not yours yet",
+                        RegionsMenu.line("it lives here, it is just not open yet",
                                 NamedTextColor.DARK_GRAY))
                 .build();
     }
