@@ -15,9 +15,13 @@ import java.util.List;
  * a level. So the steps are smoothed until they never fall, staying as close to what
  * the config asked for as that allows: the scale is the shape, not the arithmetic.
  *
+ * <p>A level the config prices but no fish opens at - one held out in front of
+ * people while what it gives is still being built - stands outside all of that. It
+ * costs exactly what it is priced at, and the levels below it are left alone:
+ * smoothing it in would drag the whole curve up to meet it.
+ *
  * <p>Nothing here is tuned by hand. The last level is the highest level any fish is
- * locked behind, and a fish added to a category or moved between levels retunes the
- * whole curve by itself.
+ * locked behind, or the last one the config prices, whichever is further up.
  */
 public final class LevelCurve {
 
@@ -37,10 +41,13 @@ public final class LevelCurve {
      * @param fishLevels one entry per catchable fish, in any order
      */
     public static LevelCurve from(int[] fishLevels, ExperienceRule rule, CompletionRule demand) {
-        int maxLevel = FIRST_LEVEL;
+        int stocked = FIRST_LEVEL;
         for (int level : fishLevels) {
-            maxLevel = Math.max(maxLevel, level);
+            stocked = Math.max(stocked, level);
         }
+        // A level the config prices counts even when no fish opens there: that is how
+        // a level is put in front of people before there is anything behind it.
+        int maxLevel = Math.max(stocked, demand.last().level());
 
         // How many fish are open at each level, counting everything at or below it.
         int[] open = new int[maxLevel + 1];
@@ -60,21 +67,31 @@ public final class LevelCurve {
         }
 
         double[] steps = new double[maxLevel + 1];
-        for (int level = FIRST_LEVEL + 1; level <= maxLevel; level++) {
+        for (int level = FIRST_LEVEL + 1; level <= stocked; level++) {
             steps[level] = Math.max(0, asked[level] - asked[level - 1]);
         }
-        climb(steps, FIRST_LEVEL + 1, maxLevel);
-        lean(steps, FIRST_LEVEL + 1, maxLevel);
+        climb(steps, FIRST_LEVEL + 1, stocked);
+        ease(steps, FIRST_LEVEL + 1, stocked);
+        lean(steps, FIRST_LEVEL + 1, stocked);
 
         long[] thresholds = new long[maxLevel + 1];
         long running = 0;
-        for (int level = FIRST_LEVEL + 1; level <= maxLevel; level++) {
+        for (int level = FIRST_LEVEL + 1; level <= stocked; level++) {
             // Snapped step by step rather than at the end: every experience anybody
             // can hold is a multiple of what a milestone pays, so a threshold that is
             // not one would never be landed on, only jumped past. Rounding each step
             // also keeps them climbing, which rounding the totals would not.
             running += onGrid(steps[level], rule.perStep());
             thresholds[level] = running;
+        }
+
+        // Past the roster the levels stand on their own. Smoothing them in with the
+        // rest would drag the whole curve up to meet them - a level priced at the
+        // ninth milestone would make every level below it steeper to keep the climb
+        // even - and these are meant to sit apart, not to reshape what came before.
+        for (int level = stocked + 1; level <= maxLevel; level++) {
+            thresholds[level] = Math.max(onGrid(asked[level], rule.perStep()),
+                    thresholds[level - 1] + Math.max(1, rule.perStep()));
         }
         return new LevelCurve(thresholds);
     }
@@ -159,6 +176,48 @@ public final class LevelCurve {
     }
 
     /**
+     * Takes the cliff out of the places where the scale changes milestone.
+     *
+     * <p>Pooling only answers steps that fall. A step that leaps - the last level
+     * asking four times the one before it, because the scale goes from the fifth
+     * milestone to the sixth in one move - is left exactly as it was, and that is
+     * the one a player actually feels.
+     *
+     * <p>So no step may be more than a set fraction larger than the one below it.
+     * Where one is, the excess is handed back down the curve rather than dropped:
+     * the levels before it each take a little more, the leap comes down, and the
+     * total is what it was. Handed down repeatedly, because the level that now
+     * takes more may itself have become a leap.
+     */
+    private static void ease(double[] steps, int from, int to) {
+        // A third more than the level below is a climb anybody can feel without it
+        // reading as a wall. Two levels of that is already a doubling.
+        final double most = 1.35;
+
+        // Bounded rather than "until nothing moves": each pass flattens the worst
+        // leap by a third, so this is far more passes than the curve ever needs,
+        // and a curve that cannot settle still ends up sensible instead of hanging.
+        for (int pass = 0; pass < 200; pass++) {
+            boolean moved = false;
+            for (int at = to; at > from; at--) {
+                double allowed = most * steps[at - 1];
+                if (steps[at] <= allowed) {
+                    continue;
+                }
+                // Hand back just enough that the pair sits on the limit, keeping
+                // what the two of them cost together.
+                double handed = (steps[at] - allowed) / (1 + most);
+                steps[at] -= handed;
+                steps[at - 1] += handed;
+                moved = true;
+            }
+            if (!moved) {
+                return;
+            }
+        }
+    }
+
+    /**
      * Fans out the runs the smoothing left flat, so no two levels cost the same.
      *
      * <p>Smoothing answers a plateau in the scale with a run of identical steps -
@@ -231,6 +290,6 @@ public final class LevelCurve {
 
         long start = experienceFor(level);
         long span = level >= maxLevel() ? 0 : experienceFor(level + 1) - start;
-        return new Progress(level, earned, earned - start, span);
+        return new Progress(level, earned, earned - start, span, maxLevel());
     }
 }

@@ -129,6 +129,7 @@ final class FishingListener implements Listener {
                 ? FishSelector.select(fish.get().all(), spot,
                         levels.levelOf(event.getPlayer().getUniqueId()),
                         RodChances.of(event.getPlayer(), settings.get(), kinds.get()),
+                        RodChances.seaLuck(event.getPlayer(), settings.get()),
                         ThreadLocalRandom.current())
                 : fish.get().get(arranged.fishId());
         if (picked == null) {

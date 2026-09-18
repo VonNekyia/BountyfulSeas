@@ -62,6 +62,20 @@ final class RodChances {
         return rarity -> weights.getOrDefault(rarity, 0.0);
     }
 
+    /**
+     * What Luck of the Sea does to a fish that carries its own chance.
+     *
+     * <p>Those fish sit outside the tier weights - they are drawn before the tiers
+     * are - so the enchantment cannot reach them the way it reaches a tier, and has
+     * to be handed to the draw separately. Luck of the Sea rather than Luck of the
+     * Fish: what has a chance of its own is what the sea gives up, not what swims
+     * into the net.
+     */
+    static double seaLuck(Player player, Settings settings) {
+        return settings.enchantments().luckMultiplier(
+                levelOf(rodOf(player), Enchantment.LUCK_OF_THE_SEA));
+    }
+
     /** Exposed for reporting, so what is shown is what will be rolled. */
     static Map<Rarity, Double> weightsFor(Player player, Settings settings, TierKinds kinds) {
         Map<Rarity, Double> base = new EnumMap<>(Rarity.class);

@@ -1,0 +1,25 @@
+# Mythische Fische - Mythicals: the ones that are not on any list.
+#
+# A mythic is not drawn out of its tier the way everything else is. It carries a
+# catch_chance of its own - a percentage of every bite, wherever it lives - and is
+# asked before the tiers are, so the number means what it says however much else
+# shares the water. Luck of the Sea lifts it; Luck of the Fish does not.
+#
+# Every condition listed has to hold at once, so night and storm means both.
+
+mythical_dreamer_anglerfish:
+  fish_name: "<gradient:#3B2E6E:#9C7BFF:#3B2E6E><bold>Mythical Dreamer Anglerfish</bold></gradient>"
+  fish_item: "nexo:mythical_dreamer_anglerfish"
+  lore:
+    - "Es traeumt im Dunkeln, und manchmal traeumt es von dir."
+
+  max_length: 247
+  level: 15
+
+  water_type: [ocean]
+  depth: [deep]
+  condition: [night, storm]
+
+  spawn_weight: 1
+  catch_chance: 0.25
+  rarity: mythic

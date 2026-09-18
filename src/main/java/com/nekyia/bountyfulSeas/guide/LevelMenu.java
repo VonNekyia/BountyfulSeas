@@ -57,12 +57,16 @@ public final class LevelMenu extends RoseGUI {
                 .displayName(Component.empty())
                 .build());
 
+        // Every level there is, not only the ones something opens at: a level with
+        // nothing behind it yet is still a level, and saying so is how anybody knows
+        // there is more coming.
+        Map<Integer, List<Fish>> opens = byLevel(library);
         int index = 0;
-        for (Map.Entry<Integer, List<Fish>> entry : byLevel(library).entrySet()) {
+        for (int level = 1; level <= standing.maxLevel(); level++) {
             if (index >= LEVEL_SLOTS.length) {
                 break;
             }
-            addItem(LEVEL_SLOTS[index++], levelIcon(entry.getKey(), entry.getValue()));
+            addItem(LEVEL_SLOTS[index++], levelIcon(level, opens.getOrDefault(level, List.of())));
         }
 
         addItem(40, new RoseItem.Builder()
@@ -89,6 +93,18 @@ public final class LevelMenu extends RoseGUI {
         lore.add(GuideText.line(reached ? "reached" : "not yet - you are level " + standing.level(),
                 reached ? NamedTextColor.GREEN : NamedTextColor.RED));
         lore.add(GuideText.blank());
+
+        if (opens.isEmpty()) {
+            lore.add(GuideText.line("more rewards coming soon", NamedTextColor.LIGHT_PURPLE));
+            return new RoseItem.Builder()
+                    .material(reached ? Material.AMETHYST_SHARD : Material.GRAY_DYE)
+                    .displayName(Component.text("Level " + level,
+                                    reached ? NamedTextColor.LIGHT_PURPLE : NamedTextColor.GRAY)
+                            .decoration(TextDecoration.ITALIC, false))
+                    .addLore(lore.toArray(new Component[0]))
+                    .build();
+        }
+
         lore.add(GuideText.line(opens.size() == 1 ? "opens 1 catch" : "opens " + opens.size() + " catches",
                 NamedTextColor.GRAY));
 

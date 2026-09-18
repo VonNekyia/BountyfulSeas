@@ -42,6 +42,7 @@ public final class FishLoader {
     private static final String KEY_CONDITION = "condition";
     private static final String KEY_BAIT_LOCKED = "bait_locked";
     private static final String KEY_SPAWN_WEIGHT = "spawn_weight";
+    private static final String KEY_CATCH_CHANCE = "catch_chance";
     private static final String KEY_RARITY = "rarity";
     private static final String KEY_ON_EAT = "on_eat";
     private static final String KEY_LORE = "lore";
@@ -57,7 +58,8 @@ public final class FishLoader {
             KEY_MAX_LENGTH, KEY_LEVEL,
             KEY_WATER_TYPE, KEY_TERRAIN, KEY_VEGETATION, KEY_DEPTH,
             KEY_MODIFIER, KEY_CONDITION,
-            KEY_BAIT_LOCKED, KEY_SPAWN_WEIGHT, KEY_RARITY, KEY_ON_EAT, KEY_LORE);
+            KEY_BAIT_LOCKED, KEY_SPAWN_WEIGHT, KEY_CATCH_CHANCE, KEY_RARITY, KEY_ON_EAT,
+            KEY_LORE);
 
     private static final Set<String> KNOWN_ON_EAT_KEYS = Set.of(KEY_SATURATION, KEY_EFFECTS);
 
@@ -196,6 +198,12 @@ public final class FishLoader {
         if (spawnWeight < 0) {
             problems.add(FishProblem.fish(file, id, KEY_SPAWN_WEIGHT + " must not be negative"));
         }
+        double catchChance = number(file, id, section, KEY_CATCH_CHANCE, problems);
+        if (catchChance > 100) {
+            problems.add(FishProblem.fish(file, id, KEY_CATCH_CHANCE
+                    + " is a percentage of every bite, so it cannot be above 100"));
+        }
+
         Rarity rarity = rarity(file, id, section, problems);
         boolean object = kinds.isObject(rarity);
         if (object && maxLength > 0) {
@@ -212,7 +220,7 @@ public final class FishLoader {
         return new Fish(id, category, name, item, lore,
                 maxLength, level,
                 waterTypes, terrains, vegetations, depths, modifiers, conditions,
-                baitLocked, spawnWeight, rarity, object, onEat);
+                baitLocked, spawnWeight, catchChance, rarity, object, onEat);
     }
 
     /**

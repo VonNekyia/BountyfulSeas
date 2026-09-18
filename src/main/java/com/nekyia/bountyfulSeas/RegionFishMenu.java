@@ -42,6 +42,7 @@ final class RegionFishMenu extends RoseGUI {
     private final WaterMap map;
     private final FishLibrary library;
     private final ToDoubleFunction<Rarity> chanceOf;
+    private final double seaLuck;
     private final int anglerLevel;
     private final Set<Modifier> modifiers;
     private final Set<Condition> conditions;
@@ -49,7 +50,7 @@ final class RegionFishMenu extends RoseGUI {
     private final RegionsMenu.Tally tally;
 
     RegionFishMenu(Player player, WaterMap map, FishLibrary library,
-                   ToDoubleFunction<Rarity> chanceOf, int anglerLevel,
+                   ToDoubleFunction<Rarity> chanceOf, double seaLuck, int anglerLevel,
                    Set<Modifier> modifiers, Set<Condition> conditions,
                    RegionsMenu.Profile profile, RegionsMenu.Tally tally) {
         super(player, "bountyfulseas-region-fish",
@@ -57,6 +58,7 @@ final class RegionFishMenu extends RoseGUI {
         this.map = map;
         this.library = library;
         this.chanceOf = chanceOf;
+        this.seaLuck = seaLuck;
         this.anglerLevel = anglerLevel;
         this.modifiers = modifiers;
         this.conditions = conditions;
@@ -73,7 +75,8 @@ final class RegionFishMenu extends RoseGUI {
 
         WaterSpot spot = RegionsMenu.spotFor(profile, modifiers, conditions);
 
-        List<Chance> chances = FishSelector.chances(library.all(), spot, anglerLevel, chanceOf);
+        List<Chance> chances = FishSelector.chances(library.all(), spot, anglerLevel,
+                chanceOf, seaLuck);
         List<Fish> locked = FishSelector.outOfReach(library.all(), spot, anglerLevel);
 
         int index = 0;
@@ -106,8 +109,8 @@ final class RegionFishMenu extends RoseGUI {
                 .material(Material.ARROW)
                 .displayName(RegionsMenu.line("Back", NamedTextColor.YELLOW))
                 .build()
-                .onClick(click -> new RegionsMenu(player, map, library, chanceOf, anglerLevel,
-                        modifiers, conditions).open()));
+                .onClick(click -> new RegionsMenu(player, map, library, chanceOf, seaLuck,
+                        anglerLevel, modifiers, conditions).open()));
 
         addItem(49, new RoseItem.Builder()
                 .material(Material.BOOK)

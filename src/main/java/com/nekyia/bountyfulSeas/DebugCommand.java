@@ -243,7 +243,8 @@ final class DebugCommand {
         // The player's own rod, so the odds reported are the odds they will get.
         ToDoubleFunction<Rarity> chanceOf = RodChances.of(player, settings.get(), kinds.get());
         List<Chance> chances = FishSelector.chances(fish.get().all(), spot,
-                levels.levelOf(player.getUniqueId()), chanceOf);
+                levels.levelOf(player.getUniqueId()), chanceOf,
+                RodChances.seaLuck(player, settings.get()));
         if (chances.isEmpty()) {
             player.sendMessage(error("Nothing lives here. Vanilla keeps the catch."));
             return;
@@ -316,7 +317,8 @@ final class DebugCommand {
         }
 
         new RegionsMenu(player, map, fish.get(),
-                RodChances.of(player, settings.get(), kinds.get()), asked,
+                RodChances.of(player, settings.get(), kinds.get()),
+                RodChances.seaLuck(player, settings.get()), asked,
                 EnumSet.noneOf(Modifier.class),
                 WaterSpot.conditionsOf(player.getWorld())).open();
     }

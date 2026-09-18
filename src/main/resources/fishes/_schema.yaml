@@ -31,14 +31,27 @@
 #                 time and shifts on a timer, so it is only catchable where its
 #                 swarm currently is. Swarm regions are gold on the web map.
 #   condition:  [rain, storm, night, day]
+#               Every one listed has to hold at once, unlike the lists above:
+#                 [night, storm] means a stormy night, not night or storm.
+#                 Where a list says where a fish lives, any value will do;
+#                 where it says what has to be true, all of them must.
 #
 #   bait_locked: false         # defaults to false
 #   spawn_weight: 100          # defaults to 100, 0 disables the fish
-#   rarity: uncommon           # required
-#   # [uncommon, rare, misc, epic, legendary, treasure, mythic, signature]
+#   rarity: common             # required
+#   # [common, uncommon, rare, misc, epic, legendary, treasure, mythic, signature]
 #   # misc and treasure are not fish and carry no length.
 #   # Tier is rolled first, from rarity-chances in config.yml, then an entry
 #   # inside it by spawn_weight.
+#
+#   catch_chance: 0.25         # optional, and a different thing entirely
+#   # A chance of its own, as a percentage of every bite, instead of a share of
+#   # its tier's. The fish is drawn before the tiers are, so 0.25 means a quarter
+#   # of one per cent wherever it lives, however much else lives there too -
+#   # which a tier share can never mean, since that is divided among whatever
+#   # happens to share the tier at that spot.
+#   # Luck of the Sea lifts it; Luck of the Fish does not. Leave it out and the
+#   # fish takes part in the ordinary draw.
 #
 #   on_eat:                    # leave out entirely to make a fish inedible
 #     saturation: 0

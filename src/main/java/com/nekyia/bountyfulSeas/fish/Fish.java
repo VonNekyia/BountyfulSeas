@@ -21,6 +21,8 @@ import java.util.Set;
  * @param level       the angling level needed before this fish will bite at all
  * @param baitLocked  whether the fish can only be caught with a bait that names it
  * @param spawnWeight relative weight in the catch roll; 0 disables the fish
+ * @param catchChance a chance of its own, as a percentage of every bite, instead of
+ *                    a share of its tier's; 0 leaves the fish in the ordinary draw
  * @param rarity      the rarity tier the fish is announced as
  * @param object      whether this is a thing rather than a fish, so it has no length
  * @param onEat       what eating it does, or null when the fish is not edible
@@ -41,6 +43,7 @@ public record Fish(
         Set<Condition> conditions,
         boolean baitLocked,
         int spawnWeight,
+        double catchChance,
         Rarity rarity,
         boolean object,
         OnEat onEat
@@ -60,6 +63,17 @@ public record Fish(
         return values == null || values.isEmpty()
                 ? Collections.unmodifiableSet(EnumSet.noneOf(type))
                 : Collections.unmodifiableSet(EnumSet.copyOf(values));
+    }
+
+    /**
+     * Whether this fish is drawn on its own rather than out of its tier.
+     *
+     * <p>A chance of its own is the only way to say "a quarter of one per cent of
+     * every bite, wherever it lives" - a tier share cannot, because it is divided
+     * among whatever else happens to share the tier at that spot.
+     */
+    public boolean hasOwnChance() {
+        return catchChance > 0;
     }
 
     /** Whether this entry is an object rather than a fish, so it has no length. */

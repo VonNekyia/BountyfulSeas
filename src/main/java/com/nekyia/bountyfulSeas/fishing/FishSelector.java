@@ -71,14 +71,44 @@ public final class FishSelector {
      */
     public static List<Chance> chances(Collection<Fish> fishes, WaterConditions where,
                                        int anglerLevel, ToDoubleFunction<Rarity> chanceOf) {
+        return chances(fishes, where, anglerLevel, chanceOf, 1);
+    }
+
+    /**
+     * The same, with a rod in it.
+     *
+     * @param ownChanceLuck what the rod does to a fish that carries its own chance
+     */
+    public static List<Chance> chances(Collection<Fish> fishes, WaterConditions where,
+                                       int anglerLevel, ToDoubleFunction<Rarity> chanceOf,
+                                       double ownChanceLuck) {
         List<Fish> candidates = candidates(fishes, where, anglerLevel);
         if (candidates.isEmpty()) {
             return List.of();
         }
 
+        // Taken out of the tier draw entirely and given the top of the roll, so what
+        // is left for everything else is what the tiers divide between them.
+        List<Chance> chances = new ArrayList<>(candidates.size());
+        double spoken = 0;
+        for (Fish fish : candidates) {
+            if (fish.hasOwnChance()) {
+                double percent = ownChance(fish, ownChanceLuck);
+                spoken += percent;
+                chances.add(new Chance(fish, fish.spawnWeight(), percent));
+            }
+        }
+        double left = Math.max(0, 100 - spoken) / 100;
+
         Map<Rarity, List<Fish>> byRarity = new EnumMap<>(Rarity.class);
         for (Fish fish : candidates) {
-            byRarity.computeIfAbsent(fish.rarity(), key -> new ArrayList<>()).add(fish);
+            if (!fish.hasOwnChance()) {
+                byRarity.computeIfAbsent(fish.rarity(), key -> new ArrayList<>()).add(fish);
+            }
+        }
+        if (byRarity.isEmpty()) {
+            chances.sort(Comparator.comparingDouble(Chance::percent).reversed());
+            return List.copyOf(chances);
         }
 
         Map<Rarity, Double> tiers = tierChances(byRarity.keySet(), chanceOf);
@@ -87,11 +117,11 @@ public final class FishSelector {
             tierTotal += chance;
         }
         if (tierTotal <= 0) {
-            return List.of();
+            chances.sort(Comparator.comparingDouble(Chance::percent).reversed());
+            return List.copyOf(chances);
         }
 
         // The real odds: the tier's normalised share, split by spawn weight inside it.
-        List<Chance> chances = new ArrayList<>(candidates.size());
         for (Map.Entry<Rarity, List<Fish>> entry : byRarity.entrySet()) {
             double tierShare = tiers.getOrDefault(entry.getKey(), 0.0) / tierTotal;
             long weightTotal = entry.getValue().stream().mapToLong(Fish::spawnWeight).sum();
@@ -100,7 +130,7 @@ public final class FishSelector {
             }
             for (Fish fish : entry.getValue()) {
                 chances.add(new Chance(fish, fish.spawnWeight(),
-                        100.0 * tierShare * fish.spawnWeight() / weightTotal));
+                        left * 100.0 * tierShare * fish.spawnWeight() / weightTotal));
             }
         }
         chances.sort(Comparator.comparingDouble(Chance::percent).reversed());
@@ -126,18 +156,59 @@ public final class FishSelector {
      */
     public static Fish select(Collection<Fish> fishes, WaterConditions where, int anglerLevel,
                               ToDoubleFunction<Rarity> chanceOf, RandomGenerator random) {
+        return select(fishes, where, anglerLevel, chanceOf, 1, random);
+    }
+
+    /**
+     * The same, with a rod in it.
+     *
+     * @param ownChanceLuck what the rod does to a fish that carries its own chance
+     */
+    public static Fish select(Collection<Fish> fishes, WaterConditions where, int anglerLevel,
+                              ToDoubleFunction<Rarity> chanceOf, double ownChanceLuck,
+                              RandomGenerator random) {
         List<Fish> candidates = candidates(fishes, where, anglerLevel);
         if (candidates.isEmpty()) {
             return null;
         }
 
+        // A fish with a chance of its own is asked first and on its own terms. Rolled
+        // against the whole hundred rather than inside a tier, so a quarter of one per
+        // cent means that wherever it lives and whatever else lives there too.
+        double roll = random.nextDouble(100);
+        for (Fish fish : candidates) {
+            if (!fish.hasOwnChance()) {
+                continue;
+            }
+            double percent = ownChance(fish, ownChanceLuck);
+            if (roll < percent) {
+                return fish;
+            }
+            roll -= percent;
+        }
+
         Map<Rarity, List<Fish>> byRarity = new EnumMap<>(Rarity.class);
         for (Fish fish : candidates) {
-            byRarity.computeIfAbsent(fish.rarity(), key -> new ArrayList<>()).add(fish);
+            if (!fish.hasOwnChance()) {
+                byRarity.computeIfAbsent(fish.rarity(), key -> new ArrayList<>()).add(fish);
+            }
+        }
+        if (byRarity.isEmpty()) {
+            return null;
         }
 
         Rarity tier = rollRarity(tierChances(byRarity.keySet(), chanceOf), random);
         return tier == null ? null : rollWithin(byRarity.get(tier), random);
+    }
+
+    /**
+     * What a fish with its own chance is worth on this rod.
+     *
+     * <p>Never the whole hundred, however enchanted the rod: something has to be
+     * left for the water to hand up anything else.
+     */
+    private static double ownChance(Fish fish, double luck) {
+        return Math.min(99, fish.catchChance() * Math.max(1, luck));
     }
 
     /**
@@ -219,8 +290,9 @@ public final class FishSelector {
     /**
      * Whether a fish accepts these conditions.
      *
-     * <p>Each trait list is a filter: empty places no restriction, and a populated
-     * one needs the spot to match any of its values, not all of them.
+     * <p>Each trait list is a filter: empty places no restriction. Where the list
+     * says where a fish lives, any one of its values is enough; where it says what
+     * has to be true of the moment - the conditions - every one of them must hold.
      */
     private static boolean matches(Fish fish, WaterConditions where) {
         if (fish.baitLocked() || fish.spawnWeight() <= 0) {
@@ -235,7 +307,7 @@ public final class FishSelector {
                 && fish.allowsVegetation(where.vegetation())
                 && fish.allowsDepth(where.depth())
                 && waterModifiers(fish, where)
-                && anyOf(fish.conditions(), where.conditions());
+                && allOf(fish.conditions(), where.conditions());
     }
 
     /**
@@ -254,5 +326,17 @@ public final class FishSelector {
     /** An empty requirement accepts anything; otherwise one shared value is enough. */
     private static <E> boolean anyOf(Set<E> required, Set<E> present) {
         return required.isEmpty() || !Collections.disjoint(required, present);
+    }
+
+    /**
+     * Every listed one has to hold, not just one of them.
+     *
+     * <p>Conditions are the one axis where that is the natural reading: a fish that
+     * wants night and storm wants both at once, where a fish that lists river and
+     * lake is happy in either. Where a trait describes somewhere the fish could be,
+     * any of them will do; where it describes what has to be true, all of them must.
+     */
+    private static <E> boolean allOf(Set<E> required, Set<E> present) {
+        return required.isEmpty() || present.containsAll(required);
     }
 }

@@ -188,6 +188,12 @@ levels:
     - level: 15
       completed-at-milestone: 6
       completion: 1.00
+    # Nothing opens at sixteen yet. It is priced anyway, which is what puts it in
+    # front of people: the level exists, it costs what the ninth milestone is worth,
+    # and what it opens is still being built.
+    - level: 16
+      completed-at-milestone: 9
+      completion: 1.00
 
 # The two sides of the table.
 #

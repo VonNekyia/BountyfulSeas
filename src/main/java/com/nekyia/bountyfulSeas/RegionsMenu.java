@@ -80,18 +80,20 @@ final class RegionsMenu extends RoseGUI {
     private final WaterMap map;
     private final FishLibrary library;
     private final ToDoubleFunction<Rarity> chanceOf;
+    private final double seaLuck;
     private final int anglerLevel;
     private final Set<Modifier> modifiers;
     private final Set<Condition> conditions;
 
     RegionsMenu(Player player, WaterMap map, FishLibrary library,
-                ToDoubleFunction<Rarity> chanceOf, int anglerLevel,
+                ToDoubleFunction<Rarity> chanceOf, double seaLuck, int anglerLevel,
                 Set<Modifier> modifiers, Set<Condition> conditions) {
         super(player, "bountyfulseas-regions",
                 Component.text("Water kinds", NamedTextColor.AQUA, TextDecoration.BOLD), 6);
         this.map = map;
         this.library = library;
         this.chanceOf = chanceOf;
+        this.seaLuck = seaLuck;
         this.anglerLevel = anglerLevel;
         this.modifiers = EnumSet.copyOf(modifiers.isEmpty()
                 ? EnumSet.noneOf(Modifier.class) : modifiers);
@@ -183,7 +185,8 @@ final class RegionsMenu extends RoseGUI {
     }
 
     private void reopen() {
-        new RegionsMenu(player, map, library, chanceOf, anglerLevel, modifiers, conditions).open();
+        new RegionsMenu(player, map, library, chanceOf, seaLuck, anglerLevel,
+                modifiers, conditions).open();
     }
 
     /**
@@ -209,7 +212,8 @@ final class RegionsMenu extends RoseGUI {
 
     private RoseItem profileIcon(Profile profile, Tally tally) {
         WaterSpot spot = spotFor(profile, modifiers, conditions);
-        List<Chance> chances = FishSelector.chances(library.all(), spot, anglerLevel, chanceOf);
+        List<Chance> chances = FishSelector.chances(library.all(), spot, anglerLevel,
+                chanceOf, seaLuck);
         List<Fish> locked = FishSelector.outOfReach(library.all(), spot, anglerLevel);
 
         // Junk has no requirements, so it bites everywhere. Counting it would make
@@ -276,8 +280,8 @@ final class RegionsMenu extends RoseGUI {
                         .decoration(TextDecoration.ITALIC, false))
                 .addLore(lore.toArray(new Component[0]))
                 .build()
-                .onClick(click -> new RegionFishMenu(player, map, library, chanceOf, anglerLevel,
-                        modifiers, conditions, profile, tally).open());
+                .onClick(click -> new RegionFishMenu(player, map, library, chanceOf, seaLuck,
+                        anglerLevel, modifiers, conditions, profile, tally).open());
     }
 
     /** Whether a fish is here because of what is toggled on, rather than anyway. */

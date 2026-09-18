@@ -7,8 +7,10 @@ package com.nekyia.bountyfulSeas.level;
  * @param experience everything earned so far
  * @param intoLevel  how much of the current level is behind them
  * @param span       how much this level is worth in total, 0 at the cap
+ * @param maxLevel   the last level there is, carried along so that anything holding
+ *                   a standing knows where the ladder ends without asking the curve
  */
-public record Progress(int level, long experience, long intoLevel, long span) {
+public record Progress(int level, long experience, long intoLevel, long span, int maxLevel) {
 
     /** Whether there is no level left to reach. */
     public boolean capped() {
