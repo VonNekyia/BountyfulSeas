@@ -13,7 +13,7 @@ atlantic_herring:
   fish_item: "nexo:atlantic_herring"
 
   max_length: 46
-  level: 1
+  level: 2
 
   water_type: [ocean]
   vegetation: [cold, temperate]
@@ -36,7 +36,7 @@ european_pilchard:
   fish_item: "nexo:european_pilchard"
 
   max_length: 31
-  level: 1
+  level: 5
 
   water_type: [ocean]
   vegetation: [temperate]
@@ -60,7 +60,7 @@ tiger_pufferfish:
   fish_item: "nexo:tiger_pufferfish"
 
   max_length: 81
-  level: 12
+  level: 9
 
   water_type: [ocean]
   vegetation: [temperate, warm]
@@ -85,7 +85,7 @@ anglerfish:
   fish_item: "nexo:anglerfish"
 
   max_length: 201
-  level: 6
+  level: 3
 
   water_type: [ocean]
   vegetation: [cold, temperate]
@@ -108,7 +108,7 @@ wels_catfish:
   fish_item: "nexo:wels_catfish"
 
   max_length: 274
-  level: 11
+  level: 14
 
   water_type: [river, lake]
   vegetation: [temperate]

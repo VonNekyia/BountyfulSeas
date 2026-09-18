@@ -124,30 +124,51 @@ levels:
   experience-per-step: 10
 
   # What a level costs is not set here. Each anchor below prices one level off the
-  # roster: completion is how much of what is already open you have to have worked
-  # through, and completed-at-milestone is what counts as having finished a fish.
-  # Adding a fish to a category therefore raises every anchor above it by itself,
-  # and the last level is simply the highest one any fish is locked behind.
+  # roster: completed-at-milestone is how deep into every fish already open you are
+  # expected to be, and completion is how much of that depth counts. A whole
+  # completion at milestone four means the level costs what milestone four on every
+  # open fish is worth - spent wherever the player likes, so it is a budget rather
+  # than a checklist.
   #
-  # The levels between two anchors are smoothed - each step a little larger than the
-  # one before - rather than priced the same way, so the climb does not jump about
-  # with wherever the fish happen to land.
+  # Adding a fish therefore raises every anchor above it by itself, and the last
+  # level is simply the highest one any fish is locked behind.
+  #
+  # The anchors below put the scale at roughly one milestone per few levels:
+  # milestone one by level 2, two by level 3, three by level 5, four by level 6 and
+  # five by level 11. The levels between them are interpolated - each step a little
+  # larger than the one before - rather than priced the same way, so the climb does
+  # not jump about with wherever the fish happen to land.
+  #
+  # The shares are not round numbers because they are what it takes to hold that
+  # scale while every level still costs more than the one below it. Those two wants
+  # pull against each other: the roster grows faster between levels 6 and 11 than the
+  # milestones do, so asking for exactly milestone four at six and exactly five at
+  # eleven would make the levels in between cost less each time.
   #
   # Milestones are paid flat but cost exponentially, so the milestone is the number
-  # that decides whether the curve is playable: the fourth is twenty catches, the
-  # sixth a hundred, the tenth a thousand.
+  # that decides whether the curve is playable: the second is 5 catches, the third
+  # 10, the fourth 20, the fifth 50 and the tenth a thousand.
   anchors:
+    - level: 3
+      completed-at-milestone: 2
+      completion: 0.50
     - level: 5
+      completed-at-milestone: 3
+      completion: 1.00
+    # Not a whole milestone four. At 1.00 this level alone would cost three times the
+    # one before it, and the next four would then cost less than it did - the climb
+    # has to keep climbing.
+    - level: 6
       completed-at-milestone: 4
-      completion: 0.60
-    # Seventy rather than sixty: at sixty this anchor lands exactly where the pace
-    # set by the one below already arrives, so levels 6 to 10 come out flat.
-    - level: 10
+      completion: 0.80
+    - level: 11
       completed-at-milestone: 5
-      completion: 0.70
+      completion: 1.00
+    # Past five on purpose: the roster keeps growing up here, so holding the depth at
+    # five would make the last levels cost less than level eleven did.
     - level: 15
       completed-at-milestone: 6
-      completion: 0.80
+      completion: 0.85
 
 # The two sides of the table.
 #

@@ -35,7 +35,7 @@ alligator_gar:
   fish_item: "nexo:alligator_gar"
 
   max_length: 306
-  level: 14
+  level: 6
 
   water_type: [river, lake]
 
@@ -57,7 +57,7 @@ european_sturgeon:
   fish_item: "nexo:european_sturgeon"
 
   max_length: 601
-  level: 14
+  level: 3
 
   water_type: [ocean, river]
   vegetation: [temperate]

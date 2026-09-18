@@ -11,7 +11,7 @@ polar_cod:
   fish_item: "nexo:polar_cod"
 
   max_length: 41
-  level: 3
+  level: 12
 
   water_type: [ocean]
   vegetation: [cold]
@@ -35,7 +35,7 @@ atlantic_cod:
   fish_item: "nexo:atlantic_cod"
 
   max_length: 201
-  level: 4
+  level: 2
 
   water_type: [ocean]
   vegetation: [cold, temperate]
@@ -57,7 +57,7 @@ burbot:
   fish_item: "nexo:burbot"
 
   max_length: 153
-  level: 8
+  level: 14
 
   water_type: [river, lake]
   vegetation: [cold]
