@@ -25,8 +25,8 @@ import java.util.Set;
  * how they differ:
  * <ul>
  *   <li>The map calls open salt water a <em>sea</em>; fish call it an ocean.</li>
- *   <li>The map treats <em>cave</em> as a modifier on a lake; fish treat it as a
- *       water type of its own.</li>
+ *   <li>The map treats <em>cave</em> as a modifier while keeping the water kind;
+ *       fish treat it as a water type of its own.</li>
  *   <li>The map treats <em>swamp</em> as a kind; fish treat it as terrain, so a
  *       swamp reads as still water standing in swampy ground.</li>
  *   <li>What a fish calls <em>vegetation</em> holds warm/temperate/cold, which is

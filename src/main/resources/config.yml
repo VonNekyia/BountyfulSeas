@@ -21,9 +21,11 @@ water-map:
   regenerate-on-start: true
 
   # Extra flags passed to the analyzer. --world and --output are always supplied.
-  # Empty uses the tuned generator defaults: 2,000-column surface bodies,
-  # 4,000-column cave pools, 20,000-column river merging, 10,000-column sea
-  # merging, unrestricted cave detection, and ICE only at 50% real ice cover.
+  # Empty uses the tuned defaults: 2,000-column water bodies, 20,000-column river
+  # merging, 10,000-column sea merging, and water surfaces >= sea level minus 10.
+  # Covered water keeps its kind and terrain; CAVE requires 50% region cover.
+  # ICE requires 50% real ice cover. --include-deep-caves enables the legacy
+  # unrestricted cave-pool classification with a 4,000-column cave minimum.
   arguments: []
 
 # Catch statistics. Without a database the plugin still works, it just keeps no

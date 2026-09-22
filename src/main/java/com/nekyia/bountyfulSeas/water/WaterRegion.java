@@ -47,7 +47,7 @@ public record WaterRegion(
         return modifiers.contains(modifier);
     }
 
-    /** Cave water cannot see the sky, and the analyzer always calls it a lake. */
+    /** The analyzer marks regions with at least 50% cover without changing their kind. */
     public boolean isCave() {
         return has(WaterModifier.CAVE);
     }
