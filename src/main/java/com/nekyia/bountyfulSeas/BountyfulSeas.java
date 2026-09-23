@@ -24,7 +24,6 @@ import com.nekyia.bountyfulSeas.config.SettingsLoader;
 import com.nekyia.bountyfulSeas.stats.CatchStores;
 import com.nekyia.bountyfulSeas.swarm.Swarms;
 import com.nekyia.bountyfulSeas.stats.Milestone;
-import com.nekyia.bountyfulSeas.pl3xmap.WaterOverlay;
 import com.nekyia.bountyfulSeas.water.WaterMap;
 import com.nekyia.bountyfulSeas.water.WaterMapGenerator;
 import net.kyori.adventure.text.Component;
@@ -54,7 +53,6 @@ public final class BountyfulSeas extends JavaPlugin {
     private static final String ROOT_COMMAND = "bs";
     private static final String COMMAND_ALIAS = "bountyfulseas";
     private static final String COMMAND_DESCRIPTION = "BountyfulSeas commands.";
-    private static final String OVERLAY_LABEL = "Fishing Water";
 
     private FishLibrary fish = FishLibrary.empty();
     private WaterMap waterMap;
@@ -96,7 +94,6 @@ public final class BountyfulSeas extends JavaPlugin {
         registerCommand();
         reportEnchantments();
         startSwarms();
-        publishWaterOverlay();
         rescanOnStart();
         getLogger().log(Level.INFO, "Ready with {0} fish.", fish.size());
     }
@@ -203,32 +200,6 @@ public final class BountyfulSeas extends JavaPlugin {
         regenerateWaterMap(getServer().getConsoleSender());
     }
 
-    /**
-     * Draws the scanned water onto Pl3xMap, when Pl3xMap is there.
-     *
-     * <p>Done once at enable, because the water map is a file that only changes
-     * when somebody rescans the world.
-     */
-    void publishWaterOverlay() {
-        if (waterMap == null || !WaterOverlay.available()) {
-            return;
-        }
-
-        String worldName = getServer().getWorlds().getFirst().getName();
-        try {
-            int markers = WaterOverlay.publish(worldName, OVERLAY_LABEL, WaterMapAreas.from(waterMap, swarms));
-            if (markers < 0) {
-                getLogger().log(Level.WARNING, "Pl3xMap does not map world {0}, so no water layer was drawn.",
-                        worldName);
-            } else {
-                getLogger().log(Level.INFO, "Drew {0} water markers on Pl3xMap for {1}.",
-                        new Object[]{markers, worldName});
-            }
-        } catch (RuntimeException failure) {
-            getLogger().log(Level.WARNING, "Could not draw the water layer: {0}", failure.toString());
-        }
-    }
-
     @Override
     public void onDisable() {
         if (catchStore instanceof AutoCloseable closeable) {
@@ -297,7 +268,6 @@ public final class BountyfulSeas extends JavaPlugin {
         if (placed > 0) {
             getLogger().log(Level.INFO, "Moved {0} swarm(s).", placed);
         }
-        publishWaterOverlay();
     }
 
     /** The cached read surface over catch totals. Never null. */
@@ -482,7 +452,6 @@ public final class BountyfulSeas extends JavaPlugin {
                 }
 
                 loadWaterMap();
-                publishWaterOverlay();
 
                 sender.sendMessage(Component.text("Water map regenerated: "
                         + (waterMap == null ? "0" : waterMap.regionCount()) + " regions.",

@@ -2,7 +2,7 @@ name: BountyfulSeas
 version: '${version}'
 
 main: com.nekyia.bountyfulSeas.BountyfulSeas
-api-version: '26.2'
+api-version: '26.3'
 
 # Registers the plugin's own enchantments while the server's registries are still
 # open. Nothing else happens this early - see BountyfulSeasBootstrap.
@@ -24,12 +24,6 @@ dependencies:
     # come after us and reads them in its own item pass instead of needing a reload.
     Nexo:
       load: AFTER
-      required: false
-
-    # Ordering only: enabling after Pl3xMap means its worlds are registered before
-    # the water layer is drawn. Without Pl3xMap there is simply no overlay.
-    Pl3xMap:
-      load: BEFORE
       required: false
 
 permissions:

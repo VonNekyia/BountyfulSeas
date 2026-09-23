@@ -12,7 +12,7 @@ Minecraft world
       |  water-analyzer (offline, Rust)
 water_regions.bin
       |  BountyfulSeas
-custom fish  ->  Nexo items, Pl3xMap overlay
+custom fish  ->  Nexo items
 ```
 
 ## What it does
@@ -22,8 +22,6 @@ custom fish  ->  Nexo items, Pl3xMap overlay
   type, terrain, climate, depth, modifiers and current world conditions.
 - Generates a Nexo item definition for every fish, so a new fish only needs a
   texture drawn for it.
-- Draws the fishable water on [Pl3xMap](https://modrinth.com/plugin/pl3xmap) as
-  traced polygons, one per region.
 - Keeps per-player catch totals, and shows them as a guide with milestones.
 
 ## How a catch is decided
@@ -363,7 +361,7 @@ selector and store a real catch goes through.
 
 ## Building
 
-Java 25 and Paper 26.2.
+Java 25 and Paper 26.3.
 
 ```bash
 gradle build
@@ -379,7 +377,6 @@ folder; override with `-PtestServerPluginFolder=<path>`.
 | `fish` | nothing - reads the YAML definitions |
 | `water` | nothing - reads `water_regions.bin` |
 | `nexo` | nothing - writes Nexo item YAML |
-| `pl3xmap` | nothing - draws map layers |
 | `level` | nothing - the experience curve and what a milestone pays |
 | `enchantment` | nothing - defines and registers the plugin's enchantments |
 | `fishing` | `fish` - picks the catch |

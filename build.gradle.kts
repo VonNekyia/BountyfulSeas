@@ -7,10 +7,6 @@ plugins {
 
 repositories {
     mavenCentral()
-    maven {
-        url = uri("https://api.modrinth.com/maven")
-        content { includeGroup("maven.modrinth") }
-    }
 }
 
 // The test server's plugin folder. Override with -PtestServerPluginFolder=<path>
@@ -49,10 +45,6 @@ val analyzerBuilds = mapOf(
 
 dependencies {
     paperweight.paperDevBundle(libs.versions.paper.api.get())
-
-    // Pl3xMap is optional at runtime: the overlay checks it is there before touching
-    // it, so a server without it simply has no water layer.
-    compileOnly(libs.pl3xmap)
 
     // Loaded at runtime by Paper from the libraries block in plugin.yml, so none
     // of this is shaded into the jar. Versions must match that list.
