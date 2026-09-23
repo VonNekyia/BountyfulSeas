@@ -14,7 +14,7 @@ repositories {
 val testServerPluginFolder: Provider<Directory> =
     providers.gradleProperty("testServerPluginFolder")
         .map { layout.projectDirectory.dir(it) }
-        .orElse(layout.projectDirectory.dir("../server-terranova-26.3/servers/main/plugins"))
+        .orElse(layout.projectDirectory.dir("../server-terranova/servers/main/plugins"))
 
 // TerranovaLib publishes no artifact this build can resolve, so its API comes from
 // the jar deployed alongside us in the test server.
