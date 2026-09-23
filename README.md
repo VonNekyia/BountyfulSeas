@@ -310,11 +310,16 @@ definition asks for it.
 build for Windows x86_64 and a static one for Linux x86_64, and unpacks whichever
 matches the server; anywhere else, point `water-map.analyzer` in `config.yml` at a
 build for that machine. The default `water-map.arguments: []` deliberately uses
-the generator's tuned defaults: 2,000-column surface bodies, 4,000-column cave
-pools, 20,000-column river merging, 10,000-column sea merging, unrestricted cave
-detection, and the ice modifier only when at least 50% of the measured region is
-really ice-covered. Put explicit analyzer flags in that list only when this server
-needs to override the reproducible defaults.
+the generator's tuned defaults: 2,000-column water bodies, 20,000-column river
+merging, 10,000-column sea merging, and water surfaces at or above sea level minus
+10 blocks (Y=53 at the default sea level). Covered water above that cutoff keeps
+its river, lake, sea or swamp classification and terrain modifiers. The `CAVE`
+modifier is added after classification when at least 50% of a final region is
+covered; debug maps show cover dots only on the measured covered columns. The ice
+modifier requires at least 50% real ice cover. `--include-deep-caves` opts into the
+legacy unrestricted cave-pool classification, with a 4,000-column cave minimum.
+Put explicit analyzer flags in that list only when this server needs to override
+the reproducible defaults.
 
 Build the Linux binary on Linux with the musl target and a musl C linker installed:
 
