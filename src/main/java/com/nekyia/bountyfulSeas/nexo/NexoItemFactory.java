@@ -3,6 +3,7 @@ package com.nekyia.bountyfulSeas.nexo;
 import org.bukkit.inventory.ItemStack;
 
 import java.lang.reflect.Method;
+import java.util.logging.Logger;
 
 /**
  * Builds the actual item stack for a Nexo item id.
@@ -20,6 +21,7 @@ public final class NexoItemFactory {
     private static final String NEXO_ITEMS = "com.nexomc.nexo.api.NexoItems";
 
     private static boolean resolved;
+    private static boolean complained;
     private static Method itemFromId;
     private static Method build;
 
@@ -38,20 +40,41 @@ public final class NexoItemFactory {
     public static synchronized ItemStack create(String id) {
         resolve();
         if (itemFromId == null) {
-            return null;
+            return complain("Nexo's item API could not be reached, so every catch"
+                    + " falls back to vanilla's fish");
         }
         try {
             Object builder = itemFromId.invoke(null, id);
             if (builder == null) {
-                return null;
+                return complain("Nexo does not know the item " + id + ", so that catch"
+                        + " falls back to vanilla's fish");
             }
             if (build == null) {
                 build = builder.getClass().getMethod("build");
             }
-            return build.invoke(builder) instanceof ItemStack stack ? stack : null;
+            if (build.invoke(builder) instanceof ItemStack stack) {
+                return stack;
+            }
+            return complain("Nexo built something other than an item for " + id);
         } catch (ReflectiveOperationException | RuntimeException failure) {
-            return null;
+            return complain("Nexo refused to build " + id + ": " + failure);
         }
+    }
+
+    /**
+     * Says so once, then goes quiet.
+     *
+     * <p>Falling back to vanilla's fish is the right thing to do and the wrong thing
+     * to do silently: the plugin then looks like it is working while handing over
+     * nothing of its own, and the only way to find out is to read the source. Once,
+     * because it would otherwise be one line per cast.
+     */
+    private static ItemStack complain(String reason) {
+        if (!complained) {
+            complained = true;
+            Logger.getLogger("BountyfulSeas").warning(reason);
+        }
+        return null;
     }
 
     private static void resolve() {
