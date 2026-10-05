@@ -74,6 +74,28 @@ tasks {
         archiveClassifier.set("")
     }
 
+    // Asks the real selector whether every fish is in the draw somewhere in a
+    // scanned world. Not a unit test and not JUnit: it needs a real water map, so
+    // it takes one as an argument and fails loudly when something is unreachable.
+    //
+    //   gradle checkReachable
+    //   gradle checkReachable -PwaterMap=<path to water_regions.bin> -PanglerLevel=16
+    register<JavaExec>("checkReachable") {
+        group = "verification"
+        description = "Checks every fish can be caught somewhere in a scanned world."
+        classpath = sourceSets["test"].runtimeClasspath
+        mainClass = "com.nekyia.bountyfulSeas.Reachable"
+        args(
+            layout.projectDirectory.file("src/main/resources/config.yml").asFile.path,
+            layout.projectDirectory.dir("src/main/resources/fishes").asFile.path,
+            providers.gradleProperty("waterMap").orElse(
+                testServerPluginFolder.map {
+                    it.file("BountyfulSeas/water_regions.bin").asFile.path
+                }).get(),
+            providers.gradleProperty("anglerLevel").orElse("16").get(),
+        )
+    }
+
     register<Copy>("deployToTestServer") {
         group = "distribution"
         description = "Copies the plugin jar into the test server's plugin folder."
