@@ -15,6 +15,8 @@ import com.nekyia.bountyfulSeas.fish.FishLoadResult;
 import com.nekyia.bountyfulSeas.fish.FishLoader;
 import com.nekyia.bountyfulSeas.fish.FishProblem;
 import com.nekyia.bountyfulSeas.fish.TierKinds;
+import com.nekyia.bountyfulSeas.fishing.Catch;
+import com.nekyia.bountyfulSeas.fishing.LengthCurve;
 import com.nekyia.bountyfulSeas.nexo.ItemAudit;
 import com.nekyia.bountyfulSeas.nexo.BlueprintResult;
 import com.nekyia.bountyfulSeas.nexo.NexoBlueprintWriter;
@@ -32,6 +34,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
@@ -164,7 +167,60 @@ public final class BountyfulSeas extends JavaPlugin {
         for (Fish entry : fish.all()) {
             items.put(entry.id(), FishNexoItems.nexoIdOf(entry.item()));
         }
-        return ItemAudit.lines(ItemAudit.run(items));
+        List<String> said = new ArrayList<>(ItemAudit.lines(ItemAudit.run(items)));
+        said.addAll(auditCatches());
+        return said;
+    }
+
+    /**
+     * Lands every fish a hundred times and checks what the angler would be handed.
+     *
+     * <p>Everything a real catch does except the bobber: the length is rolled off
+     * the configured curve, the item is built, and the chat line is composed - the
+     * same calls in the same order the fishing listener makes them. What is left
+     * untested is Paper handing us the event, which is not ours to test.
+     *
+     * <p>A hundred rolls rather than one because the length is random: a curve that
+     * is wrong at the ends is right in the middle, and one roll would not notice.
+     */
+    private List<String> auditCatches() {
+        Settings.SizeSettings sizes = settings.sizes();
+        LengthCurve curve = new LengthCurve(sizes.shape(), sizes.smallest(), sizes.oddsOfMax());
+
+        List<String> broken = new ArrayList<>();
+        int landed = 0;
+        for (Fish entry : fish.all()) {
+            ItemStack stack = itemFor(entry);
+            if (stack == null) {
+                continue;   // already reported by the item audit
+            }
+            try {
+                for (int roll = 0; roll < 100; roll++) {
+                    Catch caught = Catch.roll(entry, curve, ThreadLocalRandom.current());
+                    if (!entry.isCatchMarker()
+                            && (caught.length() <= 0 || caught.length() > entry.maxLength())) {
+                        throw new IllegalStateException("rolled " + caught.length()
+                                + " cm, outside 0 to " + entry.maxLength());
+                    }
+                    if (CatchMessage.of(caught, stack) == null) {
+                        throw new IllegalStateException("no catch message");
+                    }
+                }
+                landed++;
+            } catch (RuntimeException failure) {
+                broken.add("  " + entry.id() + ": " + failure.getMessage());
+            }
+        }
+
+        List<String> said = new ArrayList<>();
+        said.add(landed + " of " + fish.size() + " landed cleanly, 100 rolls each");
+        said.addAll(broken);
+        return said;
+    }
+
+    private ItemStack itemFor(Fish entry) {
+        String id = FishNexoItems.nexoIdOf(entry.item());
+        return id == null ? null : com.nekyia.bountyfulSeas.nexo.NexoItemFactory.create(id);
     }
 
     /** The startup half of the self-test, for a server nobody is logged into. */
