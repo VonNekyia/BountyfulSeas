@@ -15,6 +15,7 @@ import com.nekyia.bountyfulSeas.fish.FishLoadResult;
 import com.nekyia.bountyfulSeas.fish.FishLoader;
 import com.nekyia.bountyfulSeas.fish.FishProblem;
 import com.nekyia.bountyfulSeas.fish.TierKinds;
+import com.nekyia.bountyfulSeas.nexo.ItemAudit;
 import com.nekyia.bountyfulSeas.nexo.BlueprintResult;
 import com.nekyia.bountyfulSeas.nexo.NexoBlueprintWriter;
 import com.nekyia.bountyfulSeas.stats.CatchOutcome;
@@ -39,6 +40,8 @@ import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.UUID;
 import java.util.jar.JarEntry;
@@ -93,6 +96,7 @@ public final class BountyfulSeas extends JavaPlugin {
 
         registerCommand();
         reportEnchantments();
+        selftestOnStart();
         startSwarms();
         rescanOnStart();
         getLogger().log(Level.INFO, "Ready with {0} fish.", fish.size());
@@ -148,6 +152,33 @@ public final class BountyfulSeas extends JavaPlugin {
      * still be enchanted with nothing, and the bonus simply never applies. If this
      * warns, the bootstrapper did not run.
      */
+    /**
+     * Whether Nexo can build every item the plugin hands out, on this boot.
+     *
+     * <p>Run from the console as {@code /bs selftest}, and at startup when
+     * {@code -Dbountyfulseas.selftest=true} is set - which is how a test server
+     * answers it with nobody logged in.
+     */
+    private List<String> auditItems() {
+        Map<String, String> items = new LinkedHashMap<>();
+        for (Fish entry : fish.all()) {
+            items.put(entry.id(), FishNexoItems.nexoIdOf(entry.item()));
+        }
+        return ItemAudit.lines(ItemAudit.run(items));
+    }
+
+    /** The startup half of the self-test, for a server nobody is logged into. */
+    private void selftestOnStart() {
+        if (!Boolean.getBoolean("bountyfulseas.selftest")) {
+            return;
+        }
+        getServer().getScheduler().runTaskLater(this, () -> {
+            for (String line : auditItems()) {
+                getLogger().log(Level.INFO, "selftest: {0}", line);
+            }
+        }, 20L);
+    }
+
     private void reportEnchantments() {
         if (FishingEnchantments.LUCK_OF_THE_FISH.enchantment() == null) {
             getLogger().log(Level.WARNING, "{0} is not registered, so its bonus will never apply.",
@@ -171,7 +202,8 @@ public final class BountyfulSeas extends JavaPlugin {
                         this::tierKinds, this::setCatches, levels, forced,
                         task -> getServer().getScheduler().runTaskAsynchronously(this, task)),
                 this::regenerateWaterMap,
-                new GuideCommand(this, this::fish, this::stats, this::settings, levels));
+                new GuideCommand(this, this::fish, this::stats, this::settings, levels),
+                this::auditItems);
 
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event ->
                 event.registrar().register(ROOT_COMMAND, COMMAND_DESCRIPTION,

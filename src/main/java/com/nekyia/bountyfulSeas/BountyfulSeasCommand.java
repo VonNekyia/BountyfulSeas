@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * The {@code /bs} command, and the only one this plugin registers.
@@ -24,6 +25,7 @@ import java.util.function.Consumer;
 final class BountyfulSeasCommand implements BasicCommand {
 
     private static final String DEBUG = "debug";
+    private static final String SELFTEST = "selftest";
     private static final String DEBUG_PERMISSION = "bountyfulseas.debug";
 
     private static final String REGENERATE = "watermapregenerate";
@@ -32,14 +34,17 @@ final class BountyfulSeasCommand implements BasicCommand {
     private static final String GUIDE = "guide";
     private static final String GUIDE_PERMISSION = "bountyfulseas.guide";
 
-    private static final List<String> SUBCOMMANDS = List.of(GUIDE, DEBUG, REGENERATE);
+    private static final List<String> SUBCOMMANDS = List.of(GUIDE, DEBUG, SELFTEST, REGENERATE);
 
     private final DebugCommand debug;
+    private final Supplier<List<String>> selftest;
     private final Consumer<CommandSender> regenerate;
     private final GuideCommand guide;
 
-    BountyfulSeasCommand(DebugCommand debug, Consumer<CommandSender> regenerate, GuideCommand guide) {
+    BountyfulSeasCommand(DebugCommand debug, Consumer<CommandSender> regenerate, GuideCommand guide,
+                         Supplier<List<String>> selftest) {
         this.debug = debug;
+        this.selftest = selftest;
         this.regenerate = regenerate;
         this.guide = guide;
     }
@@ -75,6 +80,18 @@ final class BountyfulSeasCommand implements BasicCommand {
                 return;
             }
             debug.run(player, Arrays.copyOfRange(args, 1, args.length));
+            return;
+        }
+
+        if (sub.equals(SELFTEST)) {
+            if (denied(sender, DEBUG_PERMISSION)) {
+                return;
+            }
+            // Console too, on purpose: this is the one check that needs a running
+            // server rather than a player, so it must not need somebody logged in.
+            for (String line : selftest.get()) {
+                sender.sendMessage(Component.text(line, NamedTextColor.GRAY));
+            }
             return;
         }
 
@@ -134,7 +151,7 @@ final class BountyfulSeasCommand implements BasicCommand {
     private static String permissionFor(String subcommand) {
         return switch (subcommand) {
             case GUIDE -> GUIDE_PERMISSION;
-            case DEBUG -> DEBUG_PERMISSION;
+            case DEBUG, SELFTEST -> DEBUG_PERMISSION;
             default -> REGENERATE_PERMISSION;
         };
     }
@@ -142,6 +159,7 @@ final class BountyfulSeasCommand implements BasicCommand {
     private static Component usage() {
         return line("/bs guide", "your fishing guide and records")
                 .appendNewline()
+                .append(line("/bs selftest", "whether every catch can be handed over as its own item"))
                 .append(line("/bs debug", "what can be caught where your bobber is"))
                 .appendNewline()
                 .append(line("/bs watermapregenerate", "rescan the world and redraw the map"));

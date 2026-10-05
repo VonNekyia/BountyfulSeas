@@ -74,6 +74,12 @@ tasks {
         archiveClassifier.set("")
     }
 
+    // checkReachable is a main() rather than a JUnit test, because it needs a real
+    // water map to say anything, and a build on a machine without one must not fail.
+    test {
+        failOnNoDiscoveredTests = false
+    }
+
     // Asks the real selector whether every fish is in the draw somewhere in a
     // scanned world. Not a unit test and not JUnit: it needs a real water map, so
     // it takes one as an argument and fails loudly when something is unreachable.
@@ -111,6 +117,24 @@ tasks {
     runServer {
         minecraftVersion(libs.versions.minecraft.get())
         jvmArgs("-Xms2G", "-Xmx2G")
+
+        // TerranovaLib is a hard dependency and Nexo owns the items, so without both
+        // the plugin either refuses to enable or hands over nothing of its own. Taken
+        // from the test server rather than downloaded: those are the versions that
+        // matter, and neither publishes an artifact this build could resolve.
+        pluginJars(testServerPluginFolder.map { folder ->
+            folder.asFileTree.matching {
+                include("TerranovaLib*.jar")
+                include("nexo-*.jar")
+            }
+        })
+
+        // Answers the one question a server is needed for - can Nexo build every
+        // item - and writes it to the log, so nobody has to log in:
+        //   gradle runServer -Pselftest
+        if (providers.gradleProperty("selftest").isPresent) {
+            jvmArgs("-Dbountyfulseas.selftest=true")
+        }
     }
 
     processResources {
