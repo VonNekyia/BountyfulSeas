@@ -285,7 +285,59 @@ public final class BountyfulSeas extends JavaPlugin {
             return;
         }
 
+        if (worldUnchanged()) {
+            getLogger().info("Not rescanning on start: no region file has changed since"
+                    + " the water map was built.");
+            return;
+        }
+
         regenerateWaterMap(getServer().getConsoleSender());
+    }
+
+    /**
+     * Whether the world has been written to since the water map was built.
+     *
+     * <p>A restart that changed nothing - a crash loop, a config reload, a plugin
+     * swap - would otherwise read the whole world again to arrive at the file it
+     * already has. Minecraft touches a region file whenever it saves a chunk from
+     * it, so the newest one is a reliable "has anything happened here".
+     *
+     * <p>Coarse on purpose: any saved chunk anywhere makes this say yes, even where
+     * the chunk holds no water. Being wrong in that direction costs a scan, and
+     * being wrong in the other costs a map that is quietly out of date.
+     *
+     * <p>ponytail: all or nothing. Scanning only the region files that changed would
+     * be the real win - of 418 files on the test server, a normal session touches a
+     * few dozen - but a lake that straddles two files cannot be rescanned one file
+     * at a time without being cut in half or counted twice, so that belongs in the
+     * analyzer, where regions are formed.
+     */
+    private boolean worldUnchanged() {
+        Path map = getDataFolder().toPath().resolve(WATER_MAP_FILE);
+        if (!Files.isRegularFile(map)) {
+            return false;
+        }
+        Path world = getServer().getWorlds().getFirst().getWorldFolder().toPath();
+        try {
+            long built = Files.getLastModifiedTime(map).toMillis();
+            try (java.util.stream.Stream<Path> tree = Files.walk(world)) {
+                return tree.filter(each -> each.getFileName().toString().endsWith(".mca"))
+                        .noneMatch(each -> newerThan(each, built));
+            }
+        } catch (IOException unreadable) {
+            // Cannot tell, so scan: a stale map is the worse of the two.
+            getLogger().log(Level.FINE, "Could not compare the world against the map: {0}",
+                    unreadable.getMessage());
+            return false;
+        }
+    }
+
+    private boolean newerThan(Path file, long millis) {
+        try {
+            return Files.getLastModifiedTime(file).toMillis() > millis;
+        } catch (IOException unreadable) {
+            return true;
+        }
     }
 
     @Override

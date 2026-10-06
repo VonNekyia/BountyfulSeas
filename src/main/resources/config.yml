@@ -14,10 +14,16 @@ water-map:
   #   analyzer: "/opt/water-analyzer"
   analyzer: ""
 
-  # Rescan the world every time the server starts, so the map keeps up as the
-  # world grows. The scan runs in the background once the server is up, so it
-  # never delays startup; the overlay is redrawn when it finishes. Turn this off
-  # if scanning a very large world on every restart is not worth the CPU.
+  # Rescan the world when the server starts, so the map keeps up as the world
+  # grows. The scan runs in the background once the server is up, so it never
+  # delays startup.
+  #
+  # Skipped when no region file has changed since the map was built, so a restart
+  # that changed nothing costs nothing. A session that loaded chunks anywhere does
+  # make it scan again, even where those chunks hold no water: the whole world is
+  # read because a lake can straddle two region files.
+  #
+  # Turn this off to scan only when you ask, with /bs watermapregenerate.
   regenerate-on-start: true
 
   # Extra flags passed to the analyzer. --world and --output are always supplied.
