@@ -7,6 +7,10 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.Locale;
 
 /**
@@ -52,17 +56,56 @@ final class AnalyzerBinary {
         // one machine to another never runs the other machine's build.
         Path unpacked = plugin.getDataFolder().toPath()
                 .resolve(FOLDER).resolve(platform()).resolve(fileName());
-        if (Files.isRegularFile(unpacked)) {
+        if (Files.isRegularFile(unpacked) && matchesBundled(plugin, unpacked)) {
             return unpacked;
         }
         return unpack(plugin, unpacked);
     }
 
     /**
+     * Whether what is on disk is the build this jar carries.
+     *
+     * <p>Unpacking once and keeping it forever meant a plugin update shipped a
+     * fixed analyzer that no existing server ever ran: the stale copy was already
+     * there, so it was kept. Compared by content rather than by a version number,
+     * because the binary has none, and because a half-written copy from a crashed
+     * unpack should also be replaced.
+     *
+     * <p>A jar with nothing bundled leaves whatever is on disk alone - that is a
+     * platform we ship no build for, and the file came from somewhere else.
+     */
+    private static boolean matchesBundled(Plugin plugin, Path unpacked) {
+        String resource = FOLDER + "/" + platform() + "/" + fileName();
+        try (InputStream bundled = plugin.getResource(resource)) {
+            if (bundled == null) {
+                return true;
+            }
+            return Arrays.equals(digestOf(bundled), digestOf(Files.newInputStream(unpacked)));
+        } catch (IOException | NoSuchAlgorithmException unreadable) {
+            // Cannot tell, so keep what runs rather than risk replacing it with nothing.
+            plugin.getLogger().fine("Could not compare the unpacked water analyzer: "
+                    + unreadable.getMessage());
+            return true;
+        }
+    }
+
+    private static byte[] digestOf(InputStream stream) throws IOException, NoSuchAlgorithmException {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        try (DigestInputStream reading = new DigestInputStream(stream, digest)) {
+            byte[] block = new byte[8192];
+            while (reading.read(block) >= 0) {
+                // Read for the digest alone.
+            }
+        }
+        return digest.digest();
+    }
+
+    /**
      * Writes the bundled executable out of the jar.
      *
-     * <p>It has to live on disk to be run at all, so it is unpacked once and left
-     * there. A jar built without one simply has nothing to unpack.
+     * <p>It has to live on disk to be run at all, so it is unpacked and left there,
+     * and replaced whenever the jar carries a different build. A jar built without
+     * one simply has nothing to unpack.
      */
     private static Path unpack(Plugin plugin, Path target) {
         String resource = FOLDER + "/" + platform() + "/" + fileName();
