@@ -234,9 +234,9 @@ One file per category in `plugins/BountyfulSeas/fishes/`. The file name is the
 category, and `_schema.yaml` documents every field.
 
 ```yaml
-herring:
-  fish_name: "<gray>Hering</gray>"
-  fish_item: "nexo:herring"
+atlantic_herring:
+  fish_name: "Atlantischer Hering"
+  fish_item: "nexo:atlantic_herring"
   lore:
     - "Travels in silver walls that turn as one."
 
@@ -247,8 +247,8 @@ herring:
   depth: [shallow]
 
   spawn_weight: 140
-  rarity: uncommon
-  level: 1
+  rarity: common
+  level: 2
 
   on_eat:
     saturation: 2

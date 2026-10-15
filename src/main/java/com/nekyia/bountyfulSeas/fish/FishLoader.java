@@ -66,7 +66,7 @@ public final class FishLoader {
     private static final Set<String> KNOWN_EFFECT_KEYS =
             Set.of(KEY_EFFECT_TYPE, KEY_EFFECT_DURATION, KEY_EFFECT_AMPLIFIER);
 
-    /** Namespaced item reference, such as nexo:golden_carp. */
+    /** Namespaced item reference, such as nexo:crucian_carp. */
     private static final Pattern ITEM_REFERENCE = Pattern.compile("[a-z0-9_.-]+:[a-zA-Z0-9_./-]+");
 
     private static final int DEFAULT_SPAWN_WEIGHT = 100;
@@ -174,7 +174,7 @@ public final class FishLoader {
         String item = requiredText(file, id, section, KEY_ITEM, problems);
         if (item != null && !ITEM_REFERENCE.matcher(item).matches()) {
             problems.add(FishProblem.fish(file, id, KEY_ITEM
-                    + " must be a namespaced item such as nexo:golden_carp, but is " + item));
+                    + " must be a namespaced item such as nexo:crucian_carp, but is " + item));
         }
 
         List<String> lore = textList(file, id, section, problems);

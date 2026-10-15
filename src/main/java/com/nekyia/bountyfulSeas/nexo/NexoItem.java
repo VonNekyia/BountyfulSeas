@@ -13,7 +13,7 @@ import java.util.OptionalDouble;
  */
 public interface NexoItem {
 
-    /** The Nexo item id, without a namespace: {@code herring}, not {@code nexo:herring}. */
+    /** The Nexo item id, without a namespace: {@code atlantic_herring}, not {@code nexo:atlantic_herring}. */
     String id();
 
     /** The item name, MiniMessage as everywhere else in the stack. */
