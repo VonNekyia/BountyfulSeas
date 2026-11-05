@@ -288,8 +288,10 @@ fish and nothing else.
 ## Nexo items
 
 Nexo has no API for creating items at runtime, so BountyfulSeas writes
-`plugins/Nexo/items/bountyfulseas/fish.yml` during `onLoad`, before Nexo reads its
-items. In that file:
+`plugins/Nexo/items/bountyfulseas/` during `onLoad`, before Nexo reads its items:
+`fish.yml` for the fish and `misc.yml` for the `junk` and `treasures` categories.
+Nexo can show one tab per file. An entry found in the wrong file is moved with its
+number and hand edits rather than regenerated. In those files:
 
 - `material`, `Pack` and `Mechanics` are written once and never touched again, so
   swapping a texture by hand survives restarts.

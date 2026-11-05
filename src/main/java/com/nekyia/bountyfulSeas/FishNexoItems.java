@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.OptionalDouble;
+import java.util.Set;
 
 /**
  * Describes fish in Nexo's terms.
@@ -32,6 +33,15 @@ final class FishNexoItems {
 
     private static final String NEXO_NAMESPACE = "nexo";
 
+    private static final String FISH_FILE = "fish";
+    private static final String MISC_FILE = "misc";
+
+    /**
+     * The categories that are not fish, which get a file and so a Nexo tab of their
+     * own. A quest category is one more word here.
+     */
+    private static final Set<String> MISC_CATEGORIES = Set.of("junk", "treasures");
+
     private FishNexoItems() {
     }
 
@@ -45,6 +55,7 @@ final class FishNexoItems {
 
     private static NexoItem describe(Fish fish) {
         String id = nexoIdOf(fish.item());
+        String file = MISC_CATEGORIES.contains(fish.category()) ? MISC_FILE : FISH_FILE;
         String displayName = FishNames.miniMessage(fish);
         List<String> lore = new ArrayList<>();
         lore.add(CATEGORY_LORE.formatted(readable(fish.category())));
@@ -60,6 +71,11 @@ final class FishNexoItems {
             @Override
             public String id() {
                 return id;
+            }
+
+            @Override
+            public String file() {
+                return file;
             }
 
             @Override

@@ -80,6 +80,17 @@ tasks {
         failOnNoDiscoveredTests = false
     }
 
+    // Runs the blueprint writer against throwaway Nexo folders, which is the only way
+    // to see a migration without a server. A main() for the same reason as below.
+    //
+    //   gradle checkBlueprints
+    register<JavaExec>("checkBlueprints") {
+        group = "verification"
+        description = "Checks the Nexo blueprint writer's files, moves and numbering."
+        classpath = sourceSets["test"].runtimeClasspath
+        mainClass = "com.nekyia.bountyfulSeas.nexo.BlueprintCheck"
+    }
+
     // Asks the real selector whether every fish is in the draw somewhere in a
     // scanned world. Not a unit test and not JUnit: it needs a real water map, so
     // it takes one as an argument and fails loudly when something is unreachable.

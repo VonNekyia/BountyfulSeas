@@ -16,6 +16,13 @@ public interface NexoItem {
     /** The Nexo item id, without a namespace: {@code atlantic_herring}, not {@code nexo:atlantic_herring}. */
     String id();
 
+    /**
+     * The file this item belongs in, without folder or extension.
+     *
+     * <p>Nexo shows one tab per file, so this is also the tab it appears under.
+     */
+    String file();
+
     /** The item name, MiniMessage as everywhere else in the stack. */
     String displayName();
 

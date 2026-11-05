@@ -684,8 +684,13 @@ public final class BountyfulSeas extends JavaPlugin {
             // A shared model data shows two items with one model, so say what moved.
             getLogger().log(Level.WARNING,
                     "Reassigned {0} clashing custom model data value(s) in {1}: {2}",
-                    new Object[]{result.repaired().size(), NexoBlueprintWriter.TARGET,
+                    new Object[]{result.repaired().size(), NexoBlueprintWriter.FOLDER,
                             String.join(", ", result.repaired())});
+        }
+        if (!result.moved().isEmpty()) {
+            getLogger().log(Level.INFO, "Moved {0} item blueprint(s) within {1}: {2}",
+                    new Object[]{result.moved().size(), NexoBlueprintWriter.FOLDER,
+                            String.join(", ", result.moved())});
         }
 
         if (result.created().isEmpty()) {
@@ -693,7 +698,7 @@ public final class BountyfulSeas extends JavaPlugin {
         }
 
         getLogger().log(Level.INFO, "Wrote {0} new fish item blueprint(s) to {1}: {2}",
-                new Object[]{result.created().size(), NexoBlueprintWriter.TARGET, String.join(", ", result.created())});
+                new Object[]{result.created().size(), NexoBlueprintWriter.FOLDER, String.join(", ", result.created())});
         getLogger().info("Give them their textures in the Nexo pack, then run /nexo reload pack.");
     }
 }

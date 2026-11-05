@@ -11,11 +11,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Stream;
 
 /**
@@ -36,12 +38,17 @@ import java.util.stream.Stream;
  *       makes it safe to swap a texture or model and keep it across restarts.</li>
  * </ul>
  *
- * <p>An id that already exists in some other Nexo item file is left alone entirely.
+ * <p>Every file directly in {@link #FOLDER} is ours, and an item lives in the one its
+ * {@link NexoItem#file()} names. An entry found in another of them is moved rather
+ * than regenerated, so its hand held fields and its number go with it. An id that
+ * exists in any Nexo item file outside the folder is left alone entirely.
  */
 public final class NexoBlueprintWriter {
 
     /** Written below Nexo's own items folder so it never collides with hand made files. */
-    public static final String TARGET = "bountyfulseas/fish.yml";
+    public static final String FOLDER = "bountyfulseas/";
+
+    private static final String EXTENSION = ".yml";
 
     private static final int MODEL_DATA_BASE = 9000;
 
@@ -93,34 +100,60 @@ public final class NexoBlueprintWriter {
             return BlueprintResult.skipped("Nexo items folder not found at " + itemsFolder);
         }
 
-        Path target = itemsFolder.resolve(TARGET);
+        Path folder = itemsFolder.resolve(FOLDER);
 
-        YamlConfiguration blueprint = new YamlConfiguration();
-        if (Files.isRegularFile(target)) {
-            try {
-                blueprint.load(target.toFile());
-            } catch (IOException | InvalidConfigurationException exception) {
-                return BlueprintResult.skipped(TARGET + " could not be read, leaving it untouched: "
-                        + exception.getMessage());
-            }
+        // All of them or none: moving entries between files on a partial view could
+        // regenerate an entry that was only hiding in the file that would not load.
+        Map<Path, YamlConfiguration> files;
+        try {
+            files = loadOwn(folder);
+        } catch (IOException | InvalidConfigurationException exception) {
+            return BlueprintResult.skipped(FOLDER + " could not be read, leaving it untouched: "
+                    + exception.getMessage());
+        }
+
+        // The first item to name an id decides its file, so two fish sharing one item
+        // cannot pass it back and forth on every start.
+        Map<String, Path> homes = new LinkedHashMap<>();
+        for (NexoItem item : items) {
+            Path home = folder.resolve(item.file() + EXTENSION);
+            homes.putIfAbsent(item.id(), home);
+            files.computeIfAbsent(home, path -> new YamlConfiguration());
         }
 
         Set<String> takenIds = new HashSet<>();
         Set<Integer> takenModelData = new HashSet<>();
-        scanExisting(itemsFolder, target, takenIds, takenModelData);
+        scanExisting(itemsFolder, files.keySet(), takenIds, takenModelData);
+
+        Set<Path> gained = new LinkedHashSet<>();
+        Set<Path> lost = new LinkedHashSet<>();
+        List<String> moved = moveHome(files, homes, gained, lost);
+
+        // ponytail: not a transaction. Files that gained an entry are saved first, so
+        // a crash in between leaves it in both, and the next run keeps the one in its
+        // home. Only a run moving entries in both directions at once can still lose
+        // one, which costs its hand held fields and not the item.
+        Set<Path> dirty = new LinkedHashSet<>(gained);
+        dirty.addAll(lost);
 
         // Our own entries claim their numbers one at a time, so a number that is
         // missing, repeated, or already somebody else's is moved before anything
-        // new is handed one. Regenerating the file would also guarantee that, but
+        // new is handed one. Regenerating the files would also guarantee that, but
         // at the cost of every texture path edited by hand.
         List<String> repaired = new ArrayList<>();
-        boolean changed = repairModelData(blueprint, takenModelData, repaired);
+        files.forEach((path, blueprint) -> {
+            if (repairModelData(blueprint, takenModelData, repaired)) {
+                dirty.add(path);
+            }
+        });
 
         List<String> created = new ArrayList<>();
         int modelData = MODEL_DATA_BASE;
 
         for (NexoItem item : items) {
             String id = item.id();
+            Path home = homes.get(id);
+            YamlConfiguration blueprint = files.get(home);
 
             ConfigurationSection section = blueprint.getConfigurationSection(id);
             if (section == null) {
@@ -147,25 +180,88 @@ public final class NexoBlueprintWriter {
                 takenIds.add(id);
                 takenModelData.add(modelData);
                 created.add(id);
-                changed = true;
+                dirty.add(home);
             }
 
-            changed |= applyDerived(section, item);
+            if (applyDerived(section, item)) {
+                dirty.add(home);
+            }
         }
 
-        if (!changed) {
-            return BlueprintResult.unchanged(target);
+        if (dirty.isEmpty()) {
+            return BlueprintResult.done(created, repaired, moved);
         }
 
-        blueprint.options().setHeader(HEADER);
         try {
-            Files.createDirectories(target.getParent());
-            blueprint.save(target.toFile());
+            Files.createDirectories(folder);
+            for (Path path : dirty) {
+                YamlConfiguration blueprint = files.get(path);
+                blueprint.options().setHeader(HEADER);
+                blueprint.save(path.toFile());
+            }
         } catch (IOException exception) {
-            return BlueprintResult.skipped("could not write " + TARGET + ": " + exception.getMessage());
+            return BlueprintResult.skipped("could not write " + FOLDER + ": " + exception.getMessage());
         }
 
-        return BlueprintResult.written(target, created, repaired);
+        return BlueprintResult.done(created, repaired, moved);
+    }
+
+    /** Every file directly in the folder, in name order so repairs always run alike. */
+    private static Map<Path, YamlConfiguration> loadOwn(Path folder)
+            throws IOException, InvalidConfigurationException {
+        Map<Path, YamlConfiguration> files = new TreeMap<>();
+        if (!Files.isDirectory(folder)) {
+            return files;
+        }
+        try (Stream<Path> paths = Files.list(folder)) {
+            for (Path file : paths.filter(Files::isRegularFile).filter(NexoBlueprintWriter::isYaml).toList()) {
+                YamlConfiguration yaml = new YamlConfiguration();
+                yaml.load(file.toFile());
+                files.put(file, yaml);
+            }
+        }
+        return files;
+    }
+
+    /**
+     * Carries every entry to the file its item belongs in.
+     *
+     * <p>Copied whole rather than regenerated, because what is not derived exists
+     * nowhere else. If its home already holds one, that copy stays and the stray
+     * goes: it is what a crash between two saves leaves behind.
+     *
+     * @param gained receives the files an entry arrived in
+     * @param lost   receives the files an entry left
+     * @return {@code id -> file} for every entry that moved
+     */
+    private static List<String> moveHome(Map<Path, YamlConfiguration> files, Map<String, Path> homes,
+                                         Set<Path> gained, Set<Path> lost) {
+        List<String> moved = new ArrayList<>();
+        homes.forEach((id, home) -> files.forEach((path, blueprint) -> {
+            ConfigurationSection stray = path.equals(home) ? null : blueprint.getConfigurationSection(id);
+            if (stray == null) {
+                return;
+            }
+            YamlConfiguration destination = files.get(home);
+            if (destination.getConfigurationSection(id) == null) {
+                copy(stray, destination.createSection(id));
+                gained.add(home);
+                moved.add(id + " -> " + home.getFileName());
+            }
+            blueprint.set(id, null);
+            lost.add(path);
+        }));
+        return moved;
+    }
+
+    private static void copy(ConfigurationSection from, ConfigurationSection to) {
+        for (String key : from.getKeys(false)) {
+            if (from.get(key) instanceof ConfigurationSection nested) {
+                copy(nested, to.createSection(key));
+            } else {
+                to.set(key, from.get(key));
+            }
+        }
     }
 
     /**
@@ -175,6 +271,9 @@ public final class NexoBlueprintWriter {
      * is still free. The first entry to claim a number keeps it, so textures drawn
      * against it stay correct; a later entry holding the same number is the one
      * that moves.
+     *
+     * <p>Called once per file with the same {@code taken}, so a number has to be free
+     * across all of them, not just within its own.
      *
      * <p>This is what makes regenerating the whole file unnecessary. The guarantee
      * is the same - no two entries can share a number - but the texture, material
@@ -292,14 +391,14 @@ public final class NexoBlueprintWriter {
      * Collects every item id and every custom model data value Nexo already knows,
      * so a generated stub never shadows a hand made item or steals its model data.
      *
-     * <p>The generated file is left out entirely: its ids are ours to rewrite, and
-     * its numbers are claimed one at a time by {@link #repairModelData} so that a
+     * <p>The generated files are left out entirely: their ids are ours to rewrite, and
+     * their numbers are claimed one at a time by {@link #repairModelData} so that a
      * duplicate among them can be told apart from a number legitimately held.
      */
-    private static void scanExisting(Path itemsFolder, Path target, Set<String> ids, Set<Integer> modelData) {
+    private static void scanExisting(Path itemsFolder, Set<Path> own, Set<String> ids, Set<Integer> modelData) {
         try (Stream<Path> paths = Files.walk(itemsFolder)) {
             for (Path file : paths.filter(Files::isRegularFile).filter(NexoBlueprintWriter::isYaml).toList()) {
-                if (file.equals(target)) {
+                if (own.contains(file)) {
                     continue;
                 }
                 YamlConfiguration yaml = new YamlConfiguration();
