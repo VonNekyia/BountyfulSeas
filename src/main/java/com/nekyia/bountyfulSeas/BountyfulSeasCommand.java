@@ -4,6 +4,7 @@ import io.papermc.paper.command.brigadier.BasicCommand;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -34,16 +35,21 @@ final class BountyfulSeasCommand implements BasicCommand {
     private static final String GUIDE = "guide";
     private static final String GUIDE_PERMISSION = "bountyfulseas.guide";
 
-    private static final List<String> SUBCOMMANDS = List.of(GUIDE, DEBUG, SELFTEST, REGENERATE);
+    private static final String BAIT = "bait";
+    private static final String BOSS = "boss";
+
+    private static final List<String> SUBCOMMANDS = List.of(GUIDE, DEBUG, SELFTEST, REGENERATE, BAIT, BOSS);
 
     private final DebugCommand debug;
     private final Supplier<List<String>> selftest;
     private final Consumer<CommandSender> regenerate;
     private final GuideCommand guide;
+    private final Supplier<Integer> removeBosses;
 
     BountyfulSeasCommand(DebugCommand debug, Consumer<CommandSender> regenerate, GuideCommand guide,
-                         Supplier<List<String>> selftest) {
+                         Supplier<List<String>> selftest, Supplier<Integer> removeBosses) {
         this.debug = debug;
+        this.removeBosses = removeBosses;
         this.selftest = selftest;
         this.regenerate = regenerate;
         this.guide = guide;
@@ -104,8 +110,57 @@ final class BountyfulSeasCommand implements BasicCommand {
             return;
         }
 
+        if (sub.equals(BAIT)) {
+            if (denied(sender, DEBUG_PERMISSION)) {
+                return;
+            }
+            // Console too: a quest or the shop makes a bucket bigger.
+            bait(sender, args);
+            return;
+        }
+
+        if (sub.equals(BOSS)) {
+            if (denied(sender, DEBUG_PERMISSION)) {
+                return;
+            }
+            if (args.length != 2 || !args[1].equalsIgnoreCase("remove")) {
+                sender.sendMessage(Component.text("/bs boss remove", NamedTextColor.RED));
+                return;
+            }
+            int removed = removeBosses.get();
+            sender.sendMessage(Component.text("Removed " + removed
+                    + " boss entities; nobody is told they got away.", NamedTextColor.GREEN));
+            return;
+        }
+
         sender.sendMessage(Component.text("Unknown subcommand: " + args[0], NamedTextColor.RED));
         sender.sendMessage(usage());
+    }
+
+    /** {@code /bs bait capacity <player> <amount>}: how much of each kind their bucket takes. */
+    private static void bait(CommandSender sender, String[] args) {
+        if (args.length != 4 || !args[1].equalsIgnoreCase("capacity")) {
+            sender.sendMessage(Component.text("/bs bait capacity <player> <amount>", NamedTextColor.RED));
+            return;
+        }
+        Player target = Bukkit.getPlayerExact(args[2]);
+        if (target == null) {
+            sender.sendMessage(Component.text(args[2] + " is not online.", NamedTextColor.RED));
+            return;
+        }
+        int amount;
+        try {
+            amount = Integer.parseInt(args[3]);
+        } catch (NumberFormatException notANumber) {
+            sender.sendMessage(Component.text(args[3] + " is not a number.", NamedTextColor.RED));
+            return;
+        }
+        if (!BaitBucket.setCapacity(target, amount)) {
+            sender.sendMessage(Component.text(target.getName() + " carries no bait bucket.", NamedTextColor.RED));
+            return;
+        }
+        sender.sendMessage(Component.text(target.getName() + "'s bait bucket now takes "
+                + Math.max(1, amount) + " of each kind.", NamedTextColor.GREEN));
     }
 
     /** The subcommands this sender may run that start with what they have typed. */
@@ -151,7 +206,7 @@ final class BountyfulSeasCommand implements BasicCommand {
     private static String permissionFor(String subcommand) {
         return switch (subcommand) {
             case GUIDE -> GUIDE_PERMISSION;
-            case DEBUG, SELFTEST -> DEBUG_PERMISSION;
+            case DEBUG, SELFTEST, BAIT, BOSS -> DEBUG_PERMISSION;
             default -> REGENERATE_PERMISSION;
         };
     }
@@ -162,7 +217,10 @@ final class BountyfulSeasCommand implements BasicCommand {
                 .append(line("/bs selftest", "whether every catch can be handed over as its own item"))
                 .append(line("/bs debug", "what can be caught where your bobber is"))
                 .appendNewline()
-                .append(line("/bs watermapregenerate", "rescan the world and redraw the map"));
+                .append(line("/bs watermapregenerate", "rescan the world and redraw the map"))
+                .appendNewline()
+                .append(line("/bs bait capacity <player> <amount>", "make a bait bucket bigger"))
+                .append(line("/bs boss remove", "clear every kraken and Nessy, parts and all"));
     }
 
     private static Component line(String command, String description) {

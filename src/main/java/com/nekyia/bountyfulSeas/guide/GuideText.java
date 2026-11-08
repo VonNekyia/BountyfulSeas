@@ -78,13 +78,12 @@ final class GuideText {
         add(parts, fish.waterTypes());
         add(parts, fish.terrains());
         add(parts, fish.vegetations());
-        add(parts, fish.depths());
         add(parts, fish.modifiers().stream()
                 .filter(Modifier::describesWater)
                 .collect(Collectors.toCollection(() -> EnumSet.noneOf(Modifier.class))));
         add(parts, fish.conditions());
-        if (fish.baitLocked()) {
-            parts.add("bait only");
+        if (fish.needsBait()) {
+            parts.add("needs bait");
         }
         return parts.isEmpty() ? "anywhere, anytime" : String.join(", ", parts);
     }

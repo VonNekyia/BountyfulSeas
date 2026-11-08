@@ -22,13 +22,14 @@ public interface CatchStore {
      * @return what that catch came to - the running count, so a milestone crossing
      *         can be spotted without asking a second time, and the bests it beat
      */
-    CatchOutcome record(UUID player, String fishId, double length);
+    CatchOutcome record(UUID player, String fishId, double length, long bonusExperience, double odds);
 
     /**
      * Puts a player's count for one fish at exactly this number.
      *
      * <p>For setting up a state to look at rather than fishing towards it. The
-     * longest is left alone: a count says nothing about what was landed.
+     * longest is left alone: a count says nothing about what was landed. A count of
+     * zero also clears the size bonuses, so a reset leaves no experience behind.
      */
     void setCatches(UUID player, String fishId, long catches);
 
@@ -68,4 +69,10 @@ public interface CatchStore {
      * needs no new storage code.
      */
     List<PlayerTotal> topBy(String fishId, int limit);
+
+    /** Every player's totals for every fish, for the leaderboards to rank in memory. */
+    List<PlayerTotal> everything();
+
+    /** Every player's catches of every fish within one month, written as {@code 2026-11}. */
+    List<PlayerTotal> month(String month);
 }

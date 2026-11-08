@@ -20,6 +20,7 @@ import com.nekyia.bountyfulSeas.fishing.LengthCurve;
 import com.nekyia.bountyfulSeas.nexo.ItemAudit;
 import com.nekyia.bountyfulSeas.nexo.BlueprintResult;
 import com.nekyia.bountyfulSeas.nexo.NexoBlueprintWriter;
+import com.nekyia.bountyfulSeas.nexo.NexoItem;
 import com.nekyia.bountyfulSeas.stats.CatchOutcome;
 import com.nekyia.bountyfulSeas.stats.CatchStore;
 import com.nekyia.bountyfulSeas.config.Settings;
@@ -33,6 +34,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.command.CommandSender;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -92,10 +94,24 @@ public final class BountyfulSeas extends JavaPlugin {
     public void onEnable() {
         openCatchStore();
         loadWaterMap();
+        BossLoot kraken = new BossLoot(this, BossLoot.KRAKEN, () -> settings().kraken().trophyChance());
+        BossLoot nessy = new BossLoot(this, BossLoot.NESSY, () -> settings().nessy().trophyChance());
+        bosses = List.of(kraken, nessy);
+        for (BossLoot boss : bosses) {
+            boss.escapedWhileAway();
+            getServer().getPluginManager().registerEvents(boss, this);
+            getServer().getScheduler().runTaskTimer(this, boss, BossLoot.PERIOD, BossLoot.PERIOD);
+        }
         getServer().getPluginManager().registerEvents(
                 new FishingListener(this::fish, this::waterMap, this::swarms,
                         this::settings, this::tierKinds, levels, forced,
-                        this::recordCatch, this::loadLevel), this);
+                        this::recordCatch, this::loadLevel, kraken, nessy), this);
+        getServer().getPluginManager().registerEvents(
+                new MonthlyWinners(this, this::fish, this::stats), this);
+        getServer().getPluginManager().registerEvents(new BaitBucket.Opener(), this);
+        BossHooks hooks = new BossHooks();
+        getServer().getPluginManager().registerEvents(hooks, this);
+        getServer().getScheduler().runTaskTimer(this, hooks, BossHooks.PERIOD, BossHooks.PERIOD);
 
         registerCommand();
         reportEnchantments();
@@ -116,23 +132,14 @@ public final class BountyfulSeas extends JavaPlugin {
         stats.invalidate(player);
     }
 
-    /**
-     * The level curve, derived fresh so a config reload - or an edited fish - is felt.
-     *
-     * <p>Built from the roster rather than configured, so the last level and every
-     * threshold follow the fish files by themselves.
-     */
+    /** The level costs, read fresh so a config reload is felt. */
     private LevelCurve levelCurve() {
-        Settings.LevelSettings configured = settings.levels();
-        // Objects count too: they are milestones like any other catch, so leaving
-        // them out would hand players experience the thresholds never budgeted for.
-        int[] fishLevels = fish.all().stream().mapToInt(Fish::level).toArray();
-        return LevelCurve.from(fishLevels, experienceRule(), configured.completion());
+        return LevelCurve.of(settings.levels().costs());
     }
 
-    /** What a milestone pays, as configured. */
+    /** What a catch pays, as configured. */
     private ExperienceRule experienceRule() {
-        return new ExperienceRule(settings.levels().experiencePerStep());
+        return settings.levels().experience();
     }
 
     /** Works out a joining player's level off the server thread. */
@@ -185,7 +192,7 @@ public final class BountyfulSeas extends JavaPlugin {
      */
     private List<String> auditCatches() {
         Settings.SizeSettings sizes = settings.sizes();
-        LengthCurve curve = new LengthCurve(sizes.shape(), sizes.smallest(), sizes.oddsOfMax());
+        LengthCurve curve = new LengthCurve(sizes.shape(), sizes.smallest(), sizes.oddsOfMax(), sizes.tailFrom());
 
         List<String> broken = new ArrayList<>();
         int landed = 0;
@@ -202,7 +209,7 @@ public final class BountyfulSeas extends JavaPlugin {
                         throw new IllegalStateException("rolled " + caught.length()
                                 + " cm, outside 0 to " + entry.maxLength());
                     }
-                    if (CatchMessage.of(caught, stack) == null) {
+                    if (CatchMessage.of(caught, stack, 1) == null) {
                         throw new IllegalStateException("no catch message");
                     }
                 }
@@ -252,6 +259,33 @@ public final class BountyfulSeas extends JavaPlugin {
      * file: a Paper plugin has no commands block, and this is the same registration
      * the old one turned into anyway.
      */
+    /** Every MythicMobs boss tags its parts with this (the mobs files in content/mythicmobs). */
+    private static final String BOSS_TAG = "bountyfulseas_boss";
+    /** Bosses spawned before that tag existed still carry these. */
+    private static final java.util.Set<String> OLD_BOSS_TAGS =
+            java.util.Set.of("kraken_kopf", BossHooks.TENTACLE, BossHooks.NESSY, BossHooks.RIPPLE);
+
+    private List<BossLoot> bosses = List.of();
+
+    /**
+     * Removes every boss and every part of one - heads, tentacles, ripples, markers,
+     * young - and forgets whose they were, so nobody gets an escape message.
+     */
+    private int removeBosses() {
+        bosses.forEach(BossLoot::forgetAll);
+        int removed = 0;
+        for (org.bukkit.World world : getServer().getWorlds()) {
+            for (org.bukkit.entity.Entity entity : world.getEntities()) {
+                java.util.Set<String> tags = entity.getScoreboardTags();
+                if (tags.contains(BOSS_TAG) || tags.stream().anyMatch(OLD_BOSS_TAGS::contains)) {
+                    entity.remove();
+                    removed++;
+                }
+            }
+        }
+        return removed;
+    }
+
     private void registerCommand() {
         BountyfulSeasCommand command = new BountyfulSeasCommand(
                 new DebugCommand(this::fish, this::waterMap, this::swarms, this::settings,
@@ -259,7 +293,7 @@ public final class BountyfulSeas extends JavaPlugin {
                         task -> getServer().getScheduler().runTaskAsynchronously(this, task)),
                 this::regenerateWaterMap,
                 new GuideCommand(this, this::fish, this::stats, this::settings, levels),
-                this::auditItems);
+                this::auditItems, this::removeBosses);
 
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event ->
                 event.registrar().register(ROOT_COMMAND, COMMAND_DESCRIPTION,
@@ -460,11 +494,17 @@ public final class BountyfulSeas extends JavaPlugin {
      * database work is handed straight to the scheduler and never made to finish
      * before the player gets their fish.
      */
-    private void recordCatch(UUID player, String fishId, double length) {
+    private void recordCatch(UUID player, String fishId, double length, double odds) {
+        Fish landed = fish.get(fishId);
+        ExperienceRule rule = experienceRule();
+        String tier = landed == null ? "" : landed.rarity().configName();
+        boolean big = landed != null && isBig(landed, length, rule);
+        long sizeBonus = big ? rule.bigBonus(tier) : 0;
+
         getServer().getScheduler().runTaskAsynchronously(this, () -> {
             CatchOutcome outcome;
             try {
-                outcome = catchStore.record(player, fishId, length);
+                outcome = catchStore.record(player, fishId, length, sizeBonus, odds);
                 stats.invalidate(player);
             } catch (RuntimeException failure) {
                 getLogger().log(Level.WARNING, "Could not record a catch of {0}: {1}",
@@ -474,35 +514,43 @@ public final class BountyfulSeas extends JavaPlugin {
 
             Milestone earned = Milestone.reachedExactly(outcome.catches());
             boolean record = outcome.ownRecord() || outcome.serverRecord();
-            if (earned == null && !record) {
-                return;
-            }
+            long gained = rule.forNthCatch(tier, outcome.catches()) + sizeBonus
+                    + (earned == null ? 0 : rule.forMilestone(earned.step()));
 
-            // Experience is derived from the totals, so a milestone does not add it -
-            // it simply changes what they add up to. Only worth rereading when one
-            // was actually crossed.
             Progress before = levels.progressOf(player);
-            Progress after = earned == null ? before : levels.refresh(player);
+            Progress after = levels.refresh(player);
 
             // Back to the main thread: the player may have logged off while the
             // write was in flight, and that has to be checked where it cannot change.
             getServer().getScheduler().runTask(this, () -> {
                 Player online = getServer().getPlayer(player);
-                Fish caught = fish.get(fishId);
-                if (online == null || caught == null) {
+                if (online == null || landed == null) {
                     return;
                 }
+                online.sendActionBar(CatchMessage.experience(gained, outcome.catches() == 1, big, after));
                 if (record) {
-                    online.sendMessage(CatchMessage.record(caught, length, outcome));
+                    online.sendMessage(CatchMessage.record(landed, length, outcome));
                 }
                 if (earned != null) {
-                    online.sendMessage(CatchMessage.milestone(caught, earned, outcome.catches()));
+                    online.sendMessage(CatchMessage.milestone(landed, earned, outcome.catches()));
                 }
                 if (after.level() > before.level()) {
                     online.sendMessage(CatchMessage.levelUp(after));
+                    online.showTitle(CatchMessage.levelUpTitle(after));
+                    online.playSound(online.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
                 }
             });
         });
+    }
+
+    /** Whether a catch is among the longest share of its kind, which pays a bonus. */
+    private boolean isBig(Fish landed, double length, ExperienceRule rule) {
+        if (landed.object() || length <= 0) {
+            return false;
+        }
+        Settings.SizeSettings sizes = settings.sizes();
+        LengthCurve curve = new LengthCurve(sizes.shape(), sizes.smallest(), sizes.oddsOfMax(), sizes.tailFrom());
+        return curve.chanceOfAtLeast(landed.maxLength(), length) <= rule.bigFishShare();
     }
 
     /** Which tiers are fish and which are objects, as configured. */
@@ -674,7 +722,11 @@ public final class BountyfulSeas extends JavaPlugin {
             return;
         }
 
-        BlueprintResult result = NexoBlueprintWriter.write(nexoFolder, FishNexoItems.from(fish.all()));
+        List<NexoItem> items = new ArrayList<>(FishNexoItems.from(fish.all()));
+        items.addAll(BaitBucket.nexoItems());
+        items.add(BossLoot.KRAKEN.trophyItem());
+        items.add(BossLoot.NESSY.trophyItem());
+        BlueprintResult result = NexoBlueprintWriter.write(nexoFolder, items);
 
         if (result.skipped()) {
             getLogger().log(Level.WARNING, "Fish item blueprints skipped: {0}", result.note());

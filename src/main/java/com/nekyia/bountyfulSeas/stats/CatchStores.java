@@ -19,7 +19,7 @@ public final class CatchStores {
     public static CatchStore none() {
         return new CatchStore() {
             @Override
-            public CatchOutcome record(UUID player, String fishId, double length) {
+            public CatchOutcome record(UUID player, String fishId, double length, long bonusExperience, double odds) {
                 return CatchOutcome.nothing();
             }
 
@@ -59,6 +59,16 @@ public final class CatchStores {
 
             @Override
             public List<PlayerTotal> topBy(String fishId, int limit) {
+                return List.of();
+            }
+
+            @Override
+            public List<PlayerTotal> everything() {
+                return List.of();
+            }
+
+            @Override
+            public List<PlayerTotal> month(String month) {
                 return List.of();
             }
         };

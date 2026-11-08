@@ -231,8 +231,7 @@ final class DebugCommand {
                 + "  depth " + region.meanDepth() + "/" + region.maxDepth() + " blocks"));
         player.sendMessage(detail("reads as", lower(spot.waterType())
                 + "  " + lower(spot.terrain())
-                + "  " + lower(spot.vegetation())
-                + "  " + lower(spot.depth())));
+                + "  " + lower(spot.vegetation())));
         player.sendMessage(detail("modifiers", spot.modifiers().isEmpty() ? "none" : lower(spot.modifiers())));
         player.sendMessage(detail("conditions", lower(spot.conditions())));
 
@@ -857,7 +856,7 @@ final class DebugCommand {
 
     private LengthCurve curve() {
         Settings.SizeSettings sizes = settings.get().sizes();
-        return new LengthCurve(sizes.shape(), sizes.smallest(), sizes.oddsOfMax());
+        return new LengthCurve(sizes.shape(), sizes.smallest(), sizes.oddsOfMax(), sizes.tailFrom());
     }
 
     private static Double number(Player player, String raw) {

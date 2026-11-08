@@ -29,9 +29,16 @@ import java.util.random.RandomGenerator;
  *
  * @param shape     Z/K, the mortality-to-growth ratio; higher means big ones are rarer
  * @param smallest  the shortest catch, as a fraction of the fish's maximum
+ * <p>Above {@code tailFrom} of the maximum the curve changes. Left to itself it
+ * squeezes everything from one in a thousand to one in a million into the last
+ * centimetre, so a rare fish and a record look the same on the scale. From there up
+ * every further centimetre is instead equally harder - the odds fall by the same
+ * factor per cm - so the top end is spread out and big catches can be told apart.
+ *
  * @param oddsOfMax one catch in this many is the maximum length
+ * @param tailFrom  the fraction of the maximum where the even tail begins; 1 for none
  */
-public record LengthCurve(double shape, double smallest, long oddsOfMax) {
+public record LengthCurve(double shape, double smallest, long oddsOfMax, double tailFrom) {
 
     /** How much of the range a mythic is confined to, measured down from the top. */
     private static final double MYTHIC_BAND = 0.10;
@@ -78,9 +85,21 @@ public record LengthCurve(double shape, double smallest, long oddsOfMax) {
         if (length > max) {
             return 0;
         }
-        double climbed = (length - floor) / (max - floor);
-        double u = Math.pow(1 - climbed * (1 - reach()), shape);
-        return Math.clamp(u, 0, 1);
+        return Math.clamp(beyond((length - floor) / (max - floor)), 0, 1);
+    }
+
+    /**
+     * The same for a catch of a given tier: an outsized one is only ever drawn from
+     * the top band, so its odds are counted within that band rather than overall.
+     */
+    public double chanceOfAtLeast(double max, double length, boolean outsized) {
+        double chance = chanceOfAtLeast(max, length);
+        return outsized ? Math.min(1, chance / topBand()) : chance;
+    }
+
+    /** Whether a length is in the even tail, where every further cm is equally harder. */
+    public boolean inTail(double max, double length) {
+        return tailFrom < 1 && length >= max * tailFrom;
     }
 
     /** The length that only this fraction of catches reaches or beats. */
@@ -97,7 +116,7 @@ public record LengthCurve(double shape, double smallest, long oddsOfMax) {
     private double lengthAt(double max, double u) {
         // 0 at the smallest the gear retains, 1 at the maximum, and beyond it only
         // for the one roll in a million that overshoots - which is then clamped.
-        double climbed = (1 - Math.pow(u, 1 / shape)) / (1 - reach());
+        double climbed = climbedAt(u);
 
         double floor = max * smallest;
         return Math.min(max, round(floor + (max - floor) * climbed));
@@ -116,6 +135,38 @@ public record LengthCurve(double shape, double smallest, long oddsOfMax) {
         return Math.floor(length * PRECISION) / PRECISION;
     }
 
+    /** The share of catches that climb past this fraction of the range. */
+    private double beyond(double climbed) {
+        double knee = knee();
+        if (climbed <= knee) {
+            return Math.pow(1 - climbed * (1 - reach()), shape);
+        }
+        double atKnee = Math.pow(1 - knee * (1 - reach()), shape);
+        return atKnee * Math.pow(recordShare() / atKnee, (climbed - knee) / (1 - knee));
+    }
+
+    /** {@link #beyond} read backwards: how far a roll of {@code u} climbs. */
+    private double climbedAt(double u) {
+        double knee = knee();
+        double atKnee = Math.pow(1 - knee * (1 - reach()), shape);
+        if (knee >= 1 || u >= atKnee) {
+            return (1 - Math.pow(u, 1 / shape)) / (1 - reach());
+        }
+        if (u <= 0) {
+            return Double.POSITIVE_INFINITY;
+        }
+        return knee + (1 - knee) * Math.log(u / atKnee) / Math.log(recordShare() / atKnee);
+    }
+
+    /** Where the even tail starts, as a fraction of the range; 1 or more for none. */
+    private double knee() {
+        return (tailFrom - smallest) / (1 - smallest);
+    }
+
+    private double recordShare() {
+        return 1.0 / Math.max(1, oddsOfMax);
+    }
+
     /** How close to the asymptote the maximum sits, which is what fixes the odds. */
     private double reach() {
         return Math.pow(1.0 / Math.max(1, oddsOfMax), 1 / shape);
@@ -123,6 +174,6 @@ public record LengthCurve(double shape, double smallest, long oddsOfMax) {
 
     /** The roll below which a length lands in the top band. */
     private double topBand() {
-        return Math.pow(1 - (1 - MYTHIC_BAND) * (1 - reach()), shape);
+        return beyond(1 - MYTHIC_BAND);
     }
 }

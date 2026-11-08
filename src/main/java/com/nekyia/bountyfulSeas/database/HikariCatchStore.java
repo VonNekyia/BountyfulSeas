@@ -13,6 +13,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,11 +35,13 @@ public final class HikariCatchStore implements CatchStore, AutoCloseable {
 
     private static final String UPSERT = """
             INSERT INTO bs_player_fish
-                (player, fish_id, catches, longest)
-            VALUES (?, ?, 1, ?)
+                (player, fish_id, catches, longest, bonus_xp, rarest)
+            VALUES (?, ?, 1, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
                 catches = catches + 1,
-                longest = GREATEST(longest, ?)
+                longest = GREATEST(longest, ?),
+                bonus_xp = bonus_xp + ?,
+                rarest = LEAST(rarest, ?)
             """;
 
     /**
@@ -55,26 +58,44 @@ public final class HikariCatchStore implements CatchStore, AutoCloseable {
             FROM bs_player_fish WHERE fish_id = ?
             """;
 
+    private static final String UPSERT_MONTH = """
+            INSERT INTO bs_player_fish_month (player, month, fish_id, catches)
+            VALUES (?, ?, ?, 1)
+            ON DUPLICATE KEY UPDATE catches = catches + 1
+            """;
+
+    private static final String EVERYTHING = """
+            SELECT player, fish_id, catches, longest, rarest FROM bs_player_fish
+            """;
+
+    private static final String MONTH = """
+            SELECT player, fish_id, catches, 0 AS longest, 1 AS rarest
+            FROM bs_player_fish_month WHERE month = ?
+            """;
+
     private static final String SET_CATCHES = """
             INSERT INTO bs_player_fish (player, fish_id, catches, longest)
             VALUES (?, ?, ?, 0)
-            ON DUPLICATE KEY UPDATE catches = VALUES(catches)
+            ON DUPLICATE KEY UPDATE
+                bonus_xp = IF(VALUES(catches) = 0, 0, bonus_xp),
+                catches = VALUES(catches)
             """;
 
     private static final String BY_PLAYER_AND_FISH = """
-            SELECT fish_id, catches, longest
+            SELECT fish_id, catches, longest, bonus_xp
             FROM bs_player_fish WHERE player = ? AND fish_id = ?
             """;
 
     private static final String BY_PLAYER = """
-            SELECT fish_id, catches, longest
+            SELECT fish_id, catches, longest, bonus_xp
             FROM bs_player_fish WHERE player = ?
             """;
 
     private static final String SERVER_TOTALS = """
             SELECT fish_id,
                    SUM(catches) AS catches,
-                   MAX(longest) AS longest
+                   MAX(longest) AS longest,
+                   SUM(bonus_xp) AS bonus_xp
             FROM bs_player_fish GROUP BY fish_id
             """;
 
@@ -132,8 +153,34 @@ public final class HikariCatchStore implements CatchStore, AutoCloseable {
                 fish_id  VARCHAR(64)  NOT NULL,
                 catches  BIGINT       NOT NULL DEFAULT 0,
                 longest  DOUBLE       NOT NULL DEFAULT 0,
+                bonus_xp BIGINT       NOT NULL DEFAULT 0,
+                rarest   DOUBLE       NOT NULL DEFAULT 1,
                 PRIMARY KEY (player, fish_id),
                 KEY idx_fish (fish_id)
+            )
+            """;
+
+    /** Tables made before size bonuses and odds were kept lack the columns. */
+    private static final String ADD_COLUMNS = """
+            ALTER TABLE bs_player_fish
+                ADD COLUMN IF NOT EXISTS bonus_xp BIGINT NOT NULL DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS rarest DOUBLE NOT NULL DEFAULT 1
+            """;
+
+    /**
+     * Catches per month, for the monthly boards.
+     *
+     * <p>Rows are never cleared: a new month is a new key, so last month's board
+     * stays readable and nothing has to run at midnight.
+     */
+    private static final String MONTH_SCHEMA = """
+            CREATE TABLE IF NOT EXISTS bs_player_fish_month (
+                player   CHAR(36)     NOT NULL,
+                month    CHAR(7)      NOT NULL,
+                fish_id  VARCHAR(64)  NOT NULL,
+                catches  BIGINT       NOT NULL DEFAULT 0,
+                PRIMARY KEY (player, month, fish_id),
+                KEY idx_month (month)
             )
             """;
 
@@ -177,11 +224,13 @@ public final class HikariCatchStore implements CatchStore, AutoCloseable {
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
             statement.execute(SCHEMA);
+            statement.execute(ADD_COLUMNS);
+            statement.execute(MONTH_SCHEMA);
         }
     }
 
     @Override
-    public CatchOutcome record(UUID player, String fishId, double length) {
+    public CatchOutcome record(UUID player, String fishId, double length, long bonusExperience, double odds) {
         try (Connection connection = dataSource.getConnection()) {
             // Read before writing: afterwards the old bests are gone, overwritten
             // by this very catch, and there would be nothing left to compare with.
@@ -207,7 +256,18 @@ public final class HikariCatchStore implements CatchStore, AutoCloseable {
                 statement.setString(2, fishId);
                 // The inserted length, then the same one again for the update branch.
                 statement.setDouble(3, length);
-                statement.setDouble(4, length);
+                statement.setLong(4, bonusExperience);
+                statement.setDouble(5, odds);
+                statement.setDouble(6, length);
+                statement.setLong(7, bonusExperience);
+                statement.setDouble(8, odds);
+                statement.executeUpdate();
+            }
+
+            try (PreparedStatement statement = connection.prepareStatement(UPSERT_MONTH)) {
+                statement.setString(1, player.toString());
+                statement.setString(2, YearMonth.now().toString());
+                statement.setString(3, fishId);
                 statement.executeUpdate();
             }
 
@@ -330,13 +390,50 @@ public final class HikariCatchStore implements CatchStore, AutoCloseable {
                             UUID.fromString(rows.getString("player")),
                             fishId,
                             rows.getLong("catches"),
-                            rows.getDouble("longest")));
+                            rows.getDouble("longest"),
+                            1));
                 }
             }
             return List.copyOf(totals);
         } catch (SQLException failure) {
             throw new IllegalStateException("could not read the ranking for " + fishId, failure);
         }
+    }
+
+    @Override
+    public List<PlayerTotal> everything() {
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(EVERYTHING)) {
+            return totals(statement);
+        } catch (SQLException failure) {
+            throw new IllegalStateException("could not read every total", failure);
+        }
+    }
+
+    @Override
+    public List<PlayerTotal> month(String month) {
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(MONTH)) {
+            statement.setString(1, month);
+            return totals(statement);
+        } catch (SQLException failure) {
+            throw new IllegalStateException("could not read the totals for " + month, failure);
+        }
+    }
+
+    private static List<PlayerTotal> totals(PreparedStatement statement) throws SQLException {
+        List<PlayerTotal> totals = new ArrayList<>();
+        try (ResultSet rows = statement.executeQuery()) {
+            while (rows.next()) {
+                totals.add(new PlayerTotal(
+                        UUID.fromString(rows.getString("player")),
+                        rows.getString("fish_id"),
+                        rows.getLong("catches"),
+                        rows.getDouble("longest"),
+                        rows.getDouble("rarest")));
+            }
+        }
+        return List.copyOf(totals);
     }
 
     private static Map<String, FishStats> readAll(PreparedStatement statement) throws SQLException {
@@ -354,7 +451,8 @@ public final class HikariCatchStore implements CatchStore, AutoCloseable {
         return new FishStats(
                 rows.getString("fish_id"),
                 rows.getLong("catches"),
-                rows.getDouble("longest"));
+                rows.getDouble("longest"),
+                rows.getLong("bonus_xp"));
     }
 
     @Override

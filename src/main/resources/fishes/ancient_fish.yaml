@@ -15,7 +15,6 @@ atlantic_tarpon:
 
   water_type: [ocean, river, lake]
   vegetation: [warm]
-  depth: [shallow]
 
   spawn_weight: 18
   rarity: "epic"
@@ -83,7 +82,6 @@ arapaima:
 
   water_type: [river, lake]
   vegetation: [warm]
-  depth: [shallow]
 
   spawn_weight: 3
   rarity: "legendary"

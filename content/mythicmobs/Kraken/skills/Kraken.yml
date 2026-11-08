@@ -1,0 +1,417 @@
+# Der Kraken - Ablauf, Angriffe und Zahlen.
+#
+# Kampf in Kürze
+#   - Der Kopf liegt unter Wasser und ist dort unverwundbar. Das erste Mal taucht er
+#     nach 20 s auf, danach alle 40 s für etwa 14 s: erst die Ultra-Attacke
+#     (Mahlstrom), dann komprimiert er sich und feuert Schockwelle oder Aquakanone.
+#   - Aufgetaucht nimmt der Kopf 80 % weniger Schaden, jeder lebende Tentakel gibt
+#     10 % mehr Schutz. Ab zwei lebenden Tentakeln ist er also unverwundbar.
+#   - Jeder Spieler, der in 24 Blöcken Nähe kommt, bringt einen Tentakel mit und
+#     300 Leben für den Kopf; höchstens fünf Tentakel leben gleichzeitig.
+#   - Ein Tentakel nimmt nur Schaden, solange jemand ihn mit der Angel festhält
+#     (BountyfulSeas setzt dann den Tag kraken_gehalten, mit 1,5 s Nachlauf).
+#   - Jeder Angriff wird vorher angezeigt: Ringe auf dem Wasser, Linien, Animationen.
+#   - Ist 2 min niemand in 64 Blöcken, oder läuft der Kampf 20 min, taucht er ab und
+#     ist weg. Wird sein Chunk neu geladen (Neustart), ist er ebenfalls weg.
+#
+# Spieler-Targeter treffen Creative und Spectator nicht (MythicMobs-Standard).
+#
+# Variablen am Kopf
+#   aufgetaucht       0/1
+#   bereit            0/1: erst 20 s nach dem Spawn darf er auftauchen - ein
+#                     onTimer zählt nicht ab dem Spawn, sondern feuert früher
+#   tentakel_lebend   wie viele Tentakel gerade leben, alle 2 s neu gezählt
+#   tentakel_offen    wie viele Tentakel noch kommen dürfen
+#   leben_max         Höchstleben: 200 + 300 je Beteiligtem
+#   alter, leer       Sekunden seit dem Spawn / ohne Spieler in der Nähe
+# Am Spieler
+#   kraken_beteiligt  gesetzt, sobald er einmal in der Nähe war (10 min)
+#   kraken_gegriffen  gesetzt, solange ein Tentakel ihn hält (4 s)
+
+# ---------------------------------------------------------------------------
+# Start, Ende, Aufräumen
+# ---------------------------------------------------------------------------
+Kraken_Start:
+  Skills:
+  - setvariable{var=caster.aufgetaucht;value=0;type=INTEGER} @self
+  - setvariable{var=caster.bereit;value=0;type=INTEGER} @self
+  - setvariable{var=caster.tentakel_lebend;value=0;type=INTEGER} @self
+  - setvariable{var=caster.tentakel_offen;value=0;type=INTEGER} @self
+  - setvariable{var=caster.leben_max;value=200;type=INTEGER} @self
+  - setvariable{var=caster.beteiligt;value=0;type=INTEGER} @self
+  - setvariable{var=caster.spieler;value=0;type=INTEGER} @self
+  - setvariable{var=caster.alter;value=0;type=INTEGER} @self
+  - setvariable{var=caster.leer;value=0;type=INTEGER} @self
+  - state{mid=kraken_head;s=spawn} @self
+  - sound{s=entity.elder_guardian.curse;v=3;p=0.5} @PlayersInRadius{r=64}
+  - message{m="&3&lDer Kraken erwacht aus der Tiefe..."} @PlayersInRadius{r=64}
+  - summon{type=Kraken_VFX_Splash;amount=4;radius=4} @selflocation
+  - effect:particles{p=splash;a=200;hs=6;vs=1;y=0.5;s=0.3} @selflocation
+  - delay 400
+  - setvariable{var=caster.bereit;value=1;type=INTEGER} @self
+  - skill{s=Kraken_Auftauchen} @self
+
+Kraken_Tod:
+  Skills:
+  - state{mid=kraken_head;s=death} @self
+  - sound{s=entity.elder_guardian.death;v=3;p=0.5} @PlayersInRadius{r=64}
+  - message{m="&3&lDer Kraken sinkt zurück in die Tiefe."} @PlayersInRadius{r=64}
+  - remove @MobsInRadius{types=Kraken_Tentakel;r=48}
+  - summon{type=Kraken_VFX_Splash;amount=6;radius=5} @selflocation
+  - effect:particles{p=squid_ink;a=200;hs=4;vs=2;y=1;s=0.1} @selflocation
+
+# Alle 10 s: Kampfdauer und leere Arena mitzählen
+Kraken_Waechter:
+  Skills:
+  - variableadd{var=caster.alter;amount=10} @self
+  - skill{s=Kraken_Waechter_Leer}
+  - skill{s=Kraken_Waechter_Besetzt}
+  - skill{s=Kraken_Waechter_Zu_Alt}
+  - skill{s=Kraken_Waechter_Verlassen}
+
+Kraken_Waechter_Leer:
+  Conditions:
+  - playerwithin{d=64} false
+  Skills:
+  - variableadd{var=caster.leer;amount=10} @self
+
+Kraken_Waechter_Besetzt:
+  Conditions:
+  - playerwithin{d=64} true
+  Skills:
+  - setvariable{var=caster.leer;value=0;type=INTEGER} @self
+
+Kraken_Waechter_Zu_Alt:
+  Conditions:
+  - variableinrange{var=caster.alter;value=>1199} true
+  Skills:
+  - skill{s=Kraken_Verschwinden}
+
+Kraken_Waechter_Verlassen:
+  Conditions:
+  - variableinrange{var=caster.leer;value=>119} true
+  Skills:
+  - skill{s=Kraken_Verschwinden}
+
+# Taucht ab, ohne Beute
+Kraken_Verschwinden:
+  Skills:
+  - message{m="&3Der Kraken verliert das Interesse und taucht ab."} @PlayersInRadius{r=64}
+  - sound{s=entity.player.splash.high_speed;v=2;p=0.5} @self
+  - summon{type=Kraken_VFX_Splash;amount=4;radius=4} @selflocation
+  - remove @MobsInRadius{types=Kraken_Tentakel;r=48}
+  - remove @self
+
+# Beim Laden (Neustart, Chunk war entladen): still entfernen
+Kraken_Laden:
+  Skills:
+  - remove @MobsInRadius{types=Kraken_Tentakel;r=48}
+  - remove @self
+
+# ---------------------------------------------------------------------------
+# Kopf: Schaden
+# ---------------------------------------------------------------------------
+Kraken_Kopf_Treffer:
+  Conditions:
+  - damagecause{c=KILL} false
+  - damagecause{c=VOID} false
+  Skills:
+  - skill{s=Kraken_Kopf_Untergetaucht}
+  - skill{s=Kraken_Kopf_Geschuetzt}
+  - skill{s=Kraken_Kopf_Ein_Tentakel}
+  - skill{s=Kraken_Kopf_Kein_Tentakel}
+
+Kraken_Kopf_Untergetaucht:
+  Conditions:
+  - variableequals{var=caster.aufgetaucht;value=0} true
+  Skills:
+  - cancelevent
+  - sound{s=entity.guardian.hurt;v=1;p=0.5} @trigger
+  - actionmessage{m="&7Der Kopf ist unter Wasser."} @trigger
+
+# Ab zwei lebenden Tentakeln: 80 % + 2 x 10 % = 100 % Schutz
+Kraken_Kopf_Geschuetzt:
+  Conditions:
+  - variableequals{var=caster.aufgetaucht;value=1} true
+  - variableinrange{var=caster.tentakel_lebend;value=>1} true
+  Skills:
+  - cancelevent
+  - sound{s=item.shield.block;v=1;p=0.6} @trigger
+  - actionmessage{m="&3Die Tentakel schützen den Kopf! &7(<caster.var.tentakel_lebend> leben)"} @trigger
+
+Kraken_Kopf_Ein_Tentakel:
+  Conditions:
+  - variableequals{var=caster.aufgetaucht;value=1} true
+  - variableequals{var=caster.tentakel_lebend;value=1} true
+  Skills:
+  - modifydamage{amount=0.1;action=MULTIPLY}
+
+Kraken_Kopf_Kein_Tentakel:
+  Conditions:
+  - variableequals{var=caster.aufgetaucht;value=1} true
+  - variableinrange{var=caster.tentakel_lebend;value=<1} true
+  Skills:
+  - modifydamage{amount=0.2;action=MULTIPLY}
+
+# ---------------------------------------------------------------------------
+# Beteiligte und Tentakel
+# ---------------------------------------------------------------------------
+# Beteiligte = die meisten Spieler (Survival/Adventure), die je gleichzeitig im
+# Kampf waren. Kein Merker am Spieler: der zählte im Test einen Spieler mehrfach.
+Kraken_Beteiligte:
+  Skills:
+  - setvariable{var=caster.spieler;value=0;type=INTEGER} @self
+  - skill{s=Kraken_Spieler_Zaehlen} @PlayersInRadius{r=24}
+  - skill{s=Kraken_Beteiligt_Neu} @self
+
+Kraken_Spieler_Zaehlen:
+  TargetConditions:
+  - gamemode{m=CREATIVE} false
+  - gamemode{m=SPECTATOR} false
+  Skills:
+  - variableadd{var=caster.spieler;amount=1} @self
+
+# Jeder neue Beteiligte: ein Tentakel mehr, 300 Leben mehr.
+Kraken_Beteiligt_Neu:
+  Conditions:
+  - variableinrange{var=caster.spieler;value=><caster.var.beteiligt>} true
+  Skills:
+  - variableadd{var=caster.beteiligt;amount=1} @self
+  - variableadd{var=caster.tentakel_offen;amount=1} @self
+  - variableadd{var=caster.leben_max;amount=300} @self
+  - setmaxhealth{amount=<caster.var.leben_max>;mode=SCALE} @self
+
+# Zählt alle 2 s neu, was wirklich lebt, statt auf Zu- und Abgänge zu vertrauen
+Kraken_Zaehlen:
+  Skills:
+  - setvariable{var=caster.tentakel_lebend;value=0;type=INTEGER} @self
+  - variableadd{var=caster.tentakel_lebend;amount=1} @MobsInRadius{types=Kraken_Tentakel;r=24}
+
+Kraken_Tentakel_Nachschub:
+  Conditions:
+  - variableinrange{var=caster.tentakel_offen;value=>0} true
+  - variableinrange{var=caster.tentakel_lebend;value=<5} true
+  Skills:
+  - variablesubtract{var=caster.tentakel_offen;amount=1} @self
+  - variableadd{var=caster.tentakel_lebend;amount=1} @self
+  # Erscheint am Kopf; BountyfulSeas (BossHooks) setzt ihn binnen 5 Ticks auf
+  # freies Wasser 4 bis 9 Blöcke davon. Erst dann zeigt er sich (Tentakel_Start).
+  - summon{type=Kraken_Tentakel;amount=1} @selflocation
+
+Kraken_Tentakel_Start:
+  Skills:
+  - delay 6
+  - state{mid=kraken_tentacle;s=spawn} @self
+  - sound{s=entity.player.splash.high_speed;v=2;p=0.6} @self
+  - summon{type=Kraken_VFX_Splash;amount=1} @selflocation
+  - effect:particles{p=splash;a=60;hs=1;vs=1.5;y=1;s=0.3} @selflocation
+
+Kraken_Tentakel_Tod:
+  Skills:
+  - state{mid=kraken_tentacle;s=death} @self
+  - sound{s=entity.squid.death;v=2;p=0.5} @self
+  - effect:particles{p=squid_ink;a=80;hs=0.6;vs=2;y=1.5;s=0.05} @selflocation
+  - message{m="&3Ein Tentakel sinkt ab."} @PlayersInRadius{r=32}
+
+Kraken_Tentakel_Treffer:
+  Conditions:
+  - damagecause{c=KILL} false
+  - damagecause{c=VOID} false
+  Skills:
+  - skill{s=Kraken_Tentakel_Nicht_Gehalten}
+  - skill{s=Kraken_Tentakel_Gehalten}
+
+Kraken_Tentakel_Nicht_Gehalten:
+  Conditions:
+  - hastag{tag=kraken_gehalten} false
+  Skills:
+  - cancelevent
+  - sound{s=entity.slime.squish;v=1;p=0.6} @trigger
+  - actionmessage{m="&eHalte den Tentakel mit einer Angel fest, dann trifft man ihn!"} @trigger
+
+# Getroffen: lässt los, wen er gerade gepackt hat - und nur den
+Kraken_Tentakel_Gehalten:
+  Conditions:
+  - hastag{tag=kraken_gehalten} true
+  Skills:
+  - state{mid=kraken_tentacle;s=hurt} @self
+  - skill{s=Kraken_Loslassen} @PlayersInRadius{r=12}
+
+Kraken_Loslassen:
+  TargetConditions:
+  - variableisset{var=target.kraken_gegriffen} true
+  Skills:
+  - potionclear{types=SLOWNESS,LEVITATION} @target
+  - variableunset{var=target.kraken_gegriffen} @target
+
+# ---------------------------------------------------------------------------
+# Tentakel: Angriffe
+# ---------------------------------------------------------------------------
+
+# Smash: dreht sich zum Ziel, hebt sich (Animation), roter Ring am Ziel, 1,2 s
+# später schlägt er ein. Nur so weit, wie der Tentakel reicht (etwa 5,5 Blöcke).
+Kraken_Tentakel_Smash:
+  Conditions:
+  - offgcd
+  - playerwithin{d=6} true
+  Skills:
+  - gcd{t=50}
+  - skill{s=Kraken_Tentakel_Smash_Ziel} @NearestPlayer{r=6}
+
+Kraken_Tentakel_Smash_Ziel:
+  Skills:
+  - skill{s=Kraken_Drehen} @target
+  - state{mid=kraken_tentacle;s=smash} @self
+  - sound{s=entity.ravager.roar;v=1;p=1.6} @self
+  - summon{type=Kraken_Marker_Smash;amount=1} @target
+
+Kraken_Marker_Smash_Ablauf:
+  Skills:
+  - effect:particlering{p=dust;color=#d01818;size=1.4;radius=3;points=28;a=1;repeat=24;repeatInterval=1} @selflocation{y=0.2}
+  - effect:particles{p=dust;color=#ff5050;size=1;a=6;hs=1.5;vs=0;y=0.2;repeat=24;repeatInterval=1} @selflocation
+  - delay 24
+  - sound{s=entity.generic.explode;v=1.5;p=1.2} @self
+  - damage{a=8} @PlayersInRadius{r=3}
+  - throw{velocity=3;velocityY=1.5} @PlayersInRadius{r=3}
+  - summon{type=Kraken_VFX_Splash;amount=1} @selflocation
+  - effect:particles{p=splash;a=80;hs=1.5;vs=1;y=0.3;s=0.4} @selflocation
+  - delay 2
+  - remove @self
+
+# Greifen: Linie zum Opfer als Warnung, dann zieht er es heran und hält es fest.
+Kraken_Tentakel_Greifen:
+  Conditions:
+  - offgcd
+  - playerwithin{d=12} true
+  Skills:
+  - gcd{t=100}
+  - skill{s=Kraken_Tentakel_Greifen_Ziel} @NearestPlayer{r=12}
+
+Kraken_Tentakel_Greifen_Ziel:
+  Skills:
+  - skill{s=Kraken_Drehen} @target
+  - state{mid=kraken_tentacle;s=grab} @self
+  - sound{s=entity.squid.squirt;v=1.5;p=0.6} @self
+  - effect:particleline{p=dust;color=#8a2be2;size=1.2;distanceBetween=0.4;fromOrigin=true;repeat=16;repeatInterval=1} @target
+  - message{m="&5Ein Tentakel greift nach dir!"} @target
+  - delay 16
+  - setvariable{var=target.kraken_gegriffen;value=1;type=INTEGER;duration=80} @target
+  - pull{velocity=3} @target
+  - potion{type=SLOWNESS;duration=80;level=5;p=false} @target
+  - potion{type=LEVITATION;duration=20;level=0;p=false} @target
+  - damage{a=1.5;repeat=4;repeatInterval=20} @target
+  - state{mid=kraken_tentacle;s=hold} @self
+
+# ---------------------------------------------------------------------------
+# Kopf: Auftauchen und Angriffe
+# ---------------------------------------------------------------------------
+Kraken_Auftauchen:
+  Conditions:
+  - variableequals{var=caster.bereit;value=1} true
+  - variableequals{var=caster.aufgetaucht;value=0} true
+  - offgcd
+  Skills:
+  - setvariable{var=caster.aufgetaucht;value=1;type=INTEGER} @self
+  # Aufgetaucht ruht er in idle_up statt idle (abgetaucht). Beides im selben Tick
+  # und ohne Überblendung: emerge (override) verdeckt den Wechsel und endet genau
+  # in der Pose, mit der idle_up weiterläuft.
+  - state{mid=kraken_head;s=emerge} @self
+  - defaultstate{mid=kraken_head;t=idle;s=idle_up;li=0} @self
+  - skill{s=Kraken_Drehen} @NearestPlayer{r=32}
+  - sound{s=entity.elder_guardian.ambient;v=3;p=0.5} @PlayersInRadius{r=48}
+  - summon{type=Kraken_VFX_Splash;amount=5;radius=4} @selflocation
+  - effect:particles{p=splash;a=150;hs=4;vs=2;y=1;s=0.4} @selflocation
+  - delay 40
+  - skill{s=Kraken_Mahlstrom} @self
+  - delay 120
+  - skill{s=Kraken_Kompression} @self
+  - delay 80
+  # Ebenso zurück: submerge endet in der Pose von idle.
+  - state{mid=kraken_head;s=submerge} @self
+  - defaultstate{mid=kraken_head;t=idle;s=idle;li=0} @self
+  - sound{s=entity.player.splash.high_speed;v=2;p=0.5} @self
+  - delay 30
+  - setvariable{var=caster.aufgetaucht;value=0;type=INTEGER} @self
+  - gcd{t=500} @self
+
+# Ultra-Attacke: großer Ring 3 s als Warnung, dabei ein schwacher Sog zur Mitte.
+# Wer am Ende noch im Ring ist, wird verschlungen. Zu schaffen: 10 Blöcke in 3 s.
+Kraken_Mahlstrom:
+  Skills:
+  - state{mid=kraken_head;s=ultra;li=4;lo=0} @self
+  - sound{s=entity.warden.sonic_charge;v=3;p=0.5} @PlayersInRadius{r=48}
+  - message{m="&4&lDer Kraken holt Luft - raus aus dem Strudel!"} @PlayersInRadius{r=32}
+  - effect:particlering{p=dust;color=#b00000;size=2;radius=10;points=56;a=1;repeat=60;repeatInterval=1} @selflocation{y=0.3}
+  - effect:particlering{p=bubble_pop;radius=8;points=40;a=1;repeat=30;repeatInterval=2} @selflocation{y=0.3}
+  - pull{velocity=0.6;repeat=5;repeatInterval=12} @PlayersInRadius{r=10}
+  - delay 60
+  - sound{s=entity.warden.sonic_boom;v=3;p=0.5} @PlayersInRadius{r=48}
+  - damage{a=14} @PlayersInRadius{r=10}
+  - throw{velocity=6;velocityY=2} @PlayersInRadius{r=10}
+  - summon{type=Kraken_VFX_Splash;amount=8;radius=6} @selflocation
+  - effect:particles{p=splash;a=300;hs=8;vs=2;y=0.5;s=0.5} @selflocation
+
+Kraken_Kompression:
+  Skills:
+  - state{mid=kraken_head;s=compress;li=4} @self
+  - sound{s=block.beacon.power_select;v=2;p=0.5} @PlayersInRadius{r=32}
+  - effect:particles{p=bubble;a=60;hs=2;vs=2;y=1.5;s=0.1;repeat=25;repeatInterval=1} @self
+  - delay 24
+  - randomskill{skills=Kraken_Schockwelle,Kraken_Aquakanone} @self
+
+Kraken_Drehen:
+  Skills:
+  - look{immediately=true;force=true} @target
+  - rotatetowards{maxyaw=360;rotatepitch=false} @target
+
+Kraken_Schockwelle:
+  Skills:
+  - skill{s=Kraken_Drehen} @NearestPlayer{r=32}
+  - state{mid=kraken_head;s=shockwave;li=0;lo=4} @self
+  - summon{type=Kraken_Marker_Schockwelle;amount=1} @selflocation
+
+Kraken_Marker_Schockwelle_Ablauf:
+  Skills:
+  - effect:particlering{p=dust;color=#40c0ff;size=1.6;radius=4;points=32;a=1;repeat=12;repeatInterval=1} @selflocation{y=0.3}
+  - delay 12
+  - sound{s=entity.wind_charge.wind_burst;v=3;p=0.5} @self
+  - effect:particlering{p=cloud;radius=4;points=40;a=1} @selflocation{y=0.3}
+  - damage{a=10} @PlayersInRadius{r=4}
+  - throw{velocity=5;velocityY=2} @PlayersInRadius{r=4}
+  - delay 6
+  - effect:particlering{p=cloud;radius=8;points=60;a=1} @selflocation{y=0.3}
+  - damage{a=8} @PlayersInRing{min=4;max=8}
+  - throw{velocity=4;velocityY=1.5} @PlayersInRing{min=4;max=8}
+  - delay 6
+  - effect:particlering{p=cloud;radius=12;points=80;a=1} @selflocation{y=0.3}
+  - damage{a=6} @PlayersInRing{min=8;max=12}
+  - throw{velocity=3;velocityY=1} @PlayersInRing{min=8;max=12}
+  - delay 2
+  - remove @self
+
+Kraken_Aquakanone:
+  Skills:
+  - skill{s=Kraken_Aquakanone_Ziel} @PlayersInRadius{r=24;limit=1;sort=RANDOM}
+
+Kraken_Aquakanone_Ziel:
+  Skills:
+  - skill{s=Kraken_Drehen} @target
+  - state{mid=kraken_head;s=cannon;li=0;lo=4} @self
+  - message{m="&bDer Kraken zielt auf dich!"} @target
+  - effect:particleline{p=dust;color=#40c0ff;size=1;distanceBetween=0.5;fromOrigin=true;yOffset=1.5;repeat=20;repeatInterval=1} @target
+  - delay 20
+  - sound{s=entity.generic.splash;v=3;p=0.5} @self
+  - effect:particleline{p=splash;distanceBetween=0.3;a=4;fromOrigin=true;yOffset=1.5} @target
+  - effect:particleline{p=bubble;distanceBetween=0.3;a=2;fromOrigin=true;yOffset=1.5} @target
+  - damage{a=12} @target
+  - throw{velocity=5;velocityY=1.5} @target
+
+# ---------------------------------------------------------------------------
+# Effekt-Träger
+# ---------------------------------------------------------------------------
+Kraken_VFX_Splash_Ablauf:
+  Skills:
+  - model{mid=vfx_kraken_splash} @self
+  - state{mid=vfx_kraken_splash;s=spawn} @self
+  - delay 20
+  - remove @self

@@ -89,7 +89,6 @@ anglerfish:
 
   water_type: [ocean]
   vegetation: [cold, temperate]
-  depth: [deep]
 
   spawn_weight: 70
   rarity: "epic"

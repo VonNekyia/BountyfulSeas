@@ -84,7 +84,6 @@ european_hake:
 
   water_type: [ocean]
   vegetation: [cold, temperate]
-  depth: [deep]
   condition: [night]
 
   spawn_weight: 85

@@ -1,7 +1,6 @@
 package com.nekyia.bountyfulSeas;
 
 import com.nekyia.bountyfulSeas.fish.Condition;
-import com.nekyia.bountyfulSeas.fish.Depth;
 import com.nekyia.bountyfulSeas.fish.Fish;
 import com.nekyia.bountyfulSeas.fish.FishLibrary;
 import com.nekyia.bountyfulSeas.fish.Modifier;
@@ -39,7 +38,7 @@ import java.util.function.ToDoubleFunction;
  * <p>The map holds hundreds of regions but only a few dozen <em>kinds</em> of
  * water: a warm shallow ocean is the same fishing whether it is one region or
  * forty. So the regions are tallied by what a fish definition can actually see -
- * water type, terrain, temperature and depth - and each of those gets one icon.
+ * water type, terrain and temperature - and each of those gets one icon.
  *
  * <p>Coral, ice and the weather are toggles rather than part of the tally. They are
  * the things a spot has some of the time, and the question worth asking is what
@@ -60,11 +59,11 @@ final class RegionsMenu extends RoseGUI {
             28, 29, 30, 31, 32, 33, 34};
 
     /** The water as a fish definition sees it, with everything changeable left out. */
-    record Profile(WaterType waterType, Terrain terrain, Vegetation vegetation, Depth depth) {
+    record Profile(WaterType waterType, Terrain terrain, Vegetation vegetation) {
 
         String describe() {
             return lower(waterType) + "  " + lower(terrain) + "  "
-                    + lower(vegetation) + "  " + lower(depth);
+                    + lower(vegetation);
         }
     }
 
@@ -202,7 +201,7 @@ final class RegionsMenu extends RoseGUI {
             // is happening in it.
             WaterSpot spot = WaterSpot.of(region, Set.of(), null);
             Profile profile = new Profile(spot.waterType(), spot.terrain(),
-                    spot.vegetation(), spot.depth());
+                    spot.vegetation());
             found.put(profile, found.getOrDefault(profile, new Tally(0, 0, 0, 0))
                     .plus(region, spot.modifiers()));
         }
@@ -307,7 +306,7 @@ final class RegionsMenu extends RoseGUI {
      */
     static WaterSpot spotFor(Profile profile, Set<Modifier> modifiers, Set<Condition> conditions) {
         return new WaterSpot(profile.waterType(), profile.terrain(), profile.vegetation(),
-                profile.depth(), EnumSet.copyOf(modifiers), EnumSet.copyOf(conditions), -1, null);
+                EnumSet.copyOf(modifiers), EnumSet.copyOf(conditions), -1, null);
     }
 
     private static Material materialFor(WaterType type) {

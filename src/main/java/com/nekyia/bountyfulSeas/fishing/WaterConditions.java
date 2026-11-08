@@ -1,7 +1,6 @@
 package com.nekyia.bountyfulSeas.fishing;
 
 import com.nekyia.bountyfulSeas.fish.Condition;
-import com.nekyia.bountyfulSeas.fish.Depth;
 import com.nekyia.bountyfulSeas.fish.Modifier;
 import com.nekyia.bountyfulSeas.fish.Terrain;
 import com.nekyia.bountyfulSeas.fish.Vegetation;
@@ -25,8 +24,6 @@ public interface WaterConditions {
     Terrain terrain();
 
     Vegetation vegetation();
-
-    Depth depth();
 
     /** Features present here, such as coral or ice. Possibly empty. */
     Set<Modifier> modifiers();

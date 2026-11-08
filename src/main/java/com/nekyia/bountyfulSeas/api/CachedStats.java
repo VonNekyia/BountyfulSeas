@@ -42,6 +42,9 @@ public final class CachedStats implements StatsApi {
     /** The whole record board, fetched in one query and shared by every viewer. */
     private final Cache<String, Map<String, FishRecord>> records;
 
+    /** The whole table and the monthly ones, for the leaderboards; keyed by month, or server. */
+    private final Cache<String, List<PlayerTotal>> boards;
+
     /** Where each player stands, dropped with their totals the moment they catch. */
     private final Cache<UUID, Map<String, Integer>> places;
 
@@ -66,6 +69,11 @@ public final class CachedStats implements StatsApi {
         this.records = Caffeine.newBuilder()
                 .expireAfterWrite(serverTtl)
                 .maximumSize(1)
+                .build();
+
+        this.boards = Caffeine.newBuilder()
+                .expireAfterWrite(serverTtl)
+                .maximumSize(4)
                 .build();
 
         this.places = Caffeine.newBuilder()
@@ -109,6 +117,16 @@ public final class CachedStats implements StatsApi {
     @Override
     public List<PlayerTotal> top(String fishId, int limit) {
         return rankings.get(fishId + "#" + limit, key -> store.topBy(fishId, limit));
+    }
+
+    @Override
+    public List<PlayerTotal> everything() {
+        return boards.get(SERVER_KEY, key -> store.everything());
+    }
+
+    @Override
+    public List<PlayerTotal> month(String month) {
+        return boards.get(month, store::month);
     }
 
     @Override

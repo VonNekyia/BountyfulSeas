@@ -2,7 +2,9 @@ package com.nekyia.bountyfulSeas.guide;
 
 import com.nekyia.bountyfulSeas.stats.FishRecord;
 import com.nekyia.bountyfulSeas.stats.FishStats;
+import com.nekyia.bountyfulSeas.stats.PlayerTotal;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -17,13 +19,19 @@ import java.util.UUID;
  * @param caught  the viewer's totals, by fish id
  * @param records who holds each fish's record, by fish id
  * @param places  where the viewer stands on each fish, by fish id
- * @param names   names for the record holders, resolved while off the server thread
+ * @param names      names for everybody shown, resolved while off the server thread
+ * @param everything every player's totals, for the leaderboards
+ * @param thisMonth  every player's catches this month
+ * @param lastMonth  every player's catches last month, for its winners
  */
 public record GuideStandings(
         Map<String, FishStats> caught,
         Map<String, FishRecord> records,
         Map<String, Integer> places,
-        Map<UUID, String> names
+        Map<UUID, String> names,
+        List<PlayerTotal> everything,
+        List<PlayerTotal> thisMonth,
+        List<PlayerTotal> lastMonth
 ) {
 
     public GuideStandings {
@@ -31,11 +39,14 @@ public record GuideStandings(
         records = Map.copyOf(records);
         places = Map.copyOf(places);
         names = Map.copyOf(names);
+        everything = List.copyOf(everything);
+        thisMonth = List.copyOf(thisMonth);
+        lastMonth = List.copyOf(lastMonth);
     }
 
     /** What the guide shows when the database could not be reached. */
     public static GuideStandings none() {
-        return new GuideStandings(Map.of(), Map.of(), Map.of(), Map.of());
+        return new GuideStandings(Map.of(), Map.of(), Map.of(), Map.of(), List.of(), List.of(), List.of());
     }
 
     /** The viewer's totals for one fish, never null. */

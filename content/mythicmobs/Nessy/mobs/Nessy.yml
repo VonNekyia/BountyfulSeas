@@ -1,0 +1,124 @@
+# Nessy, die Hüterin der Seen. Ein Kampf um die Angel: erst findet man sie im
+# Nebel, dann hält man sie an der Leine, am Ende zieht man sie an Land.
+#
+# Ablauf und Zahlen: skills/Nessy.yml. Modelle: nessy, nessy_baby
+# (ModelEngine-Blueprints, content/modelengine/NESSY_MODELL.md).
+#
+# Gespawnt wird sie von BountyfulSeas, wenn sie beim Angeln in einem See anbeißt
+# (config.yml, nessy:). Zum Testen: /mm mobs spawn Nessy - mitten auf einem See.
+
+Nessy:
+  Type: GUARDIAN
+  Display: '&2&lNessy'
+  # 350 + 250 je Beteiligtem (skills: leben_max)
+  Health: 600
+  Damage: 0
+  Armor: 0
+  BossBar:
+    Enabled: true
+    Title: '&2&lNessy &7- Hüterin des Sees'
+    Range: 64
+    Color: GREEN
+    Style: SEGMENTED_10
+  Options:
+    NoAI: true
+    MovementSpeed: 0
+    KnockbackResistance: 1.0
+    Silent: true
+    PreventOtherDrops: true
+    Despawn: false
+    Persistent: true
+  DamageModifiers:
+  - DROWNING 0
+  - FALL 0
+  - SUFFOCATION 0
+  - PROJECTILE 0.5
+  Skills:
+  - addtag{tag=bountyfulseas_boss} @self ~onSpawn
+  - model{mid=nessy} @self ~onSpawn
+  # "nessy": daran erkennt BountyfulSeas sie am Haken (nessy_gehalten) und beim Tod (Beute)
+  - addtag{tag=nessy} @self ~onSpawn
+  - skill{s=Nessy_Start} @self ~onSpawn
+  - skill{s=Nessy_Tod} @self ~onDeath
+  - skill{s=Nessy_Laden} @self ~onLoad
+  - skill{s=Nessy_Waechter} @self ~onTimer:200
+  - skill{s=Nessy_Beteiligte} @self ~onTimer:40
+  - skill{s=Nessy_Treffer} @self ~onDamaged
+  # Phase 1 und 3: Wellen auslegen und nachsehen, ob jemand die echte erwischt hat
+  - skill{s=Nessy_Wellen_Takt} @self ~onTimer:200
+  - skill{s=Nessy_Wellen_Pruefen} @self ~onTimer:5
+  - skill{s=Nessy_Nebel} @self ~onTimer:10
+  # Phase 2: Tauziehen, jede Sekunde
+  - skill{s=Nessy_Tauziehen} @self ~onTimer:20
+  # Phase 3: der letzte Zug, jede Sekunde
+  - skill{s=Nessy_Letzter_Zug_Takt} @self ~onTimer:20
+  # Angriffe
+  - skill{s=Nessy_Angriff} @self ~onTimer:140
+  - skill{s=Nessy_Brut} @self ~onTimer:400
+  # Keine Drops hier: BountyfulSeas gibt die Beute dem Fänger und würfelt für die
+  # Helfer (BossLoot), weil nur das Plugin weiß, an wessen Angel sie hing.
+
+# Nessys Junge: klein, flink, zäh genug für zwei Treffer. Sie springen den
+# Nächsten an - hält der Nessy an der Leine, beißen sie ihm die Schnur durch.
+Nessy_Junges:
+  Type: AXOLOTL
+  Display: '&aNessys Junges'
+  Health: 16
+  Damage: 0
+  Armor: 0
+  Options:
+    NoAI: true
+    Silent: true
+    PreventOtherDrops: true
+    Despawn: false
+  DamageModifiers:
+  - DROWNING 0
+  - SUFFOCATION 0
+  Skills:
+  - addtag{tag=bountyfulseas_boss} @self ~onSpawn
+  - model{mid=nessy_baby} @self ~onSpawn
+  - skill{s=Nessy_Junges_Start} @self ~onSpawn
+  - skill{s=Nessy_Junges_Sprung} @self ~onTimer:40
+  - skill{s=Nessy_Junges_Tod} @self ~onDeath
+  - remove @self ~onLoad
+
+# ---------------------------------------------------------------------------
+# Wellen: unsichtbar, ohne Hitbox. BountyfulSeas setzt nessy_angebissen, sobald
+# ein Schwimmer in 2 Blöcken Nähe treibt (beide tragen dafür nessy_welle).
+# ---------------------------------------------------------------------------
+
+# Die echte: dort ist Nessy. Was beim Treffer passiert, entscheidet Nessy selbst.
+Nessy_Welle_Echt:
+  Type: INTERACTION
+  Options:
+    Height: 0
+    Width: 0
+  Skills:
+  - addtag{tag=bountyfulseas_boss} @self ~onSpawn
+  - addtag{tag=nessy_welle} @self ~onSpawn
+  - skill{s=Nessy_Welle_Echt_Ablauf} @self ~onSpawn
+  - remove @self ~onLoad
+
+# Die falschen: eine Wasserhose für den, der hineinwirft.
+Nessy_Welle_Falsch:
+  Type: INTERACTION
+  Options:
+    Height: 0
+    Width: 0
+  Skills:
+  - addtag{tag=bountyfulseas_boss} @self ~onSpawn
+  - addtag{tag=nessy_welle} @self ~onSpawn
+  - skill{s=Nessy_Welle_Falsch_Ablauf} @self ~onSpawn
+  - skill{s=Nessy_Welle_Falsch_Pruefen} @self ~onTimer:5
+  - remove @self ~onLoad
+
+# Die Flutwelle läuft von hier aus nach außen.
+Nessy_Marker_Flutwelle:
+  Type: INTERACTION
+  Options:
+    Height: 0
+    Width: 0
+  Skills:
+  - addtag{tag=bountyfulseas_boss} @self ~onSpawn
+  - skill{s=Nessy_Marker_Flutwelle_Ablauf} @self ~onSpawn
+  - remove @self ~onLoad

@@ -25,7 +25,6 @@ public class Reachable {
         public WaterType waterType() { return water.waterType(); }
         public Terrain terrain() { return water.terrain(); }
         public Vegetation vegetation() { return water.vegetation(); }
-        public Depth depth() { return water.depth(); }
         public Set<Modifier> modifiers() { return water.modifiers(); }
         public Set<Condition> conditions() { return water.conditions(); }
         public boolean hasSwarmOf(String fishId) { return swarming; }

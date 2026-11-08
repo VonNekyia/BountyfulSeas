@@ -7,7 +7,6 @@ readbeard_journal:
     - "Whatever was owed, the sea collected."
 
   water_type: [ocean]
-  depth: [deep]
 
   spawn_weight: 100
   rarity: treasure
@@ -19,7 +18,6 @@ unidentified_book:
     - "Something thats quite magical, but something is missing."
 
   water_type: [ocean,lake,river]
-  depth: [deep,shallow]
 
   spawn_weight: 100
   rarity: treasure

@@ -39,6 +39,12 @@ public interface StatsApi {
     /** The players with the most of one fish, best first. */
     List<PlayerTotal> top(String fishId, int limit);
 
+    /** Every player's totals for every fish, for ranking in memory. */
+    List<PlayerTotal> everything();
+
+    /** Every player's catches within one month, written as {@code 2026-11}. */
+    List<PlayerTotal> month(String month);
+
     /** Forgets what is cached for one player, after their totals change. */
     void invalidate(UUID player);
 }

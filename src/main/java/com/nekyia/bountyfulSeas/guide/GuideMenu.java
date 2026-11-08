@@ -86,6 +86,16 @@ public final class GuideMenu extends RoseGUI {
 
         addItem(38, levelIcon());
         addItem(40, summaryIcon(allFound, allFish));
+        addItem(42, new RoseItem.Builder()
+                .material(Material.GOLD_BLOCK)
+                .displayName(Component.text("Leaderboards", NamedTextColor.GOLD)
+                        .decoration(TextDecoration.ITALIC, false))
+                .addLore(GuideText.line("lengths, catches, treasures", NamedTextColor.GRAY),
+                        GuideText.line("all time and this month", NamedTextColor.GRAY),
+                        GuideText.blank(),
+                        GuideText.line("Click to open", NamedTextColor.YELLOW))
+                .build()
+                .onClick(click -> new LeaderboardMenu(player, fishes, standings, icons, standing, false).open()));
     }
 
     /** The way through to what each level opens up. */
@@ -153,7 +163,7 @@ public final class GuideMenu extends RoseGUI {
         }
         lore.add(GuideText.line(standing.experience() + " xp earned in all", NamedTextColor.DARK_GRAY));
         lore.add(GuideText.blank());
-        lore.add(GuideText.line("Milestones are what pay for levels", NamedTextColor.DARK_GRAY));
+        lore.add(GuideText.line("Every catch pays experience, a new kind five times", NamedTextColor.DARK_GRAY));
 
         return new RoseItem.Builder()
                 .material(Material.FISHING_ROD)

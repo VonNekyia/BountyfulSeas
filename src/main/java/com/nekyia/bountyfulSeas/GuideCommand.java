@@ -12,6 +12,7 @@ import com.nekyia.bountyfulSeas.nexo.NexoItemFactory;
 import com.nekyia.bountyfulSeas.level.Progress;
 import com.nekyia.bountyfulSeas.stats.FishRecord;
 import com.nekyia.bountyfulSeas.stats.FishStats;
+import com.nekyia.bountyfulSeas.stats.PlayerTotal;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
@@ -19,7 +20,10 @@ import org.bukkit.plugin.Plugin;
 
 import java.util.Collection;
 import java.util.Comparator;
+import java.time.YearMonth;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -125,7 +129,18 @@ final class GuideCommand {
             Map<String, FishStats> caught = api.player(player);
             Map<String, FishRecord> records = api.records();
             Map<String, Integer> places = api.places(player);
-            return new GuideStandings(caught, records, places, namesOf(records));
+            List<PlayerTotal> everything = api.everything();
+            YearMonth now = YearMonth.now();
+            List<PlayerTotal> thisMonth = api.month(now.toString());
+            List<PlayerTotal> lastMonth = api.month(now.minusMonths(1).toString());
+
+            Set<UUID> shown = new HashSet<>();
+            records.values().forEach(record -> shown.add(record.holder()));
+            for (List<PlayerTotal> rows : List.of(everything, thisMonth, lastMonth)) {
+                rows.forEach(row -> shown.add(row.player()));
+            }
+            return new GuideStandings(caught, records, places, namesOf(shown),
+                    everything, thisMonth, lastMonth);
         } catch (RuntimeException failure) {
             // An unreachable database costs the numbers, not the guide.
             plugin.getLogger().warning("Guide opened without statistics: " + failure.getMessage());
@@ -141,13 +156,11 @@ final class GuideCommand {
      * cache has never heard of is simply left out; the guide falls back to a short
      * form of their id rather than holding the menu up to ask Mojang.
      */
-    private Map<UUID, String> namesOf(Map<String, FishRecord> records) {
+    private Map<UUID, String> namesOf(Set<UUID> players) {
         Map<UUID, String> names = new HashMap<>();
-        for (FishRecord record : records.values()) {
-            names.computeIfAbsent(record.holder(), holder -> {
-                String name = plugin.getServer().getOfflinePlayer(holder).getName();
-                return name == null ? holder.toString().substring(0, 8) : name;
-            });
+        for (UUID player : players) {
+            String name = plugin.getServer().getOfflinePlayer(player).getName();
+            names.put(player, name == null ? player.toString().substring(0, 8) : name);
         }
         return names;
     }

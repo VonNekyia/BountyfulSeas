@@ -1,0 +1,127 @@
+# Der Kraken. Ein Kopf, der fast immer unter Wasser liegt, und Tentakel, die um ihn
+# herum auftauchen - ein Tentakel pro Spieler, der in den Kampf kommt, höchstens
+# fünf gleichzeitig.
+#
+# Ablauf und Zahlen: skills/Kraken.yml. Modelle: kraken_head, kraken_tentacle und
+# die vfx_kraken_*-Effekte (ModelEngine-Blueprints).
+#
+# Gespawnt wird er von BountyfulSeas, wenn er beim Angeln anbeißt
+# (config.yml, kraken:). Zum Testen: /mm mobs spawn Kraken
+
+Kraken:
+  Type: GUARDIAN
+  Display: '&3&lDer Kraken'
+  # 500 für den ersten Beteiligten, +300 für jeden weiteren (skills: leben_max)
+  Health: 500
+  Damage: 0
+  Armor: 0
+  BossBar:
+    Enabled: true
+    Title: '&3&lDer Kraken'
+    Range: 64
+    Color: BLUE
+    Style: SEGMENTED_10
+  Options:
+    NoAI: true
+    MovementSpeed: 0
+    KnockbackResistance: 1.0
+    Silent: true
+    PreventOtherDrops: true
+    Despawn: false
+    Persistent: true
+  DamageModifiers:
+  - DROWNING 0
+  - FALL 0
+  - PROJECTILE 0.5
+  Skills:
+  - addtag{tag=bountyfulseas_boss} @self ~onSpawn
+  - model{mid=kraken_head} @self ~onSpawn
+  - addtag{tag=kraken_kopf} @self ~onSpawn
+  - skill{s=Kraken_Start} @self ~onSpawn
+  - skill{s=Kraken_Tod} @self ~onDeath
+  # Nach Neustart oder Chunk-Reload ist der Kampf vorbei
+  - skill{s=Kraken_Laden} @self ~onLoad
+  # Leere Arena 2 min oder 20 min Kampf: taucht ab
+  - skill{s=Kraken_Waechter} @self ~onTimer:200
+  - skill{s=Kraken_Zaehlen} @self ~onTimer:40
+  # Schaden am Kopf: unter Wasser nichts, aufgetaucht je nach lebenden Tentakeln
+  - skill{s=Kraken_Kopf_Treffer} @self ~onDamaged
+  # Wer in den Kampf kommt, bringt einen Tentakel mit
+  - skill{s=Kraken_Beteiligte} @self ~onTimer:40
+  - skill{s=Kraken_Tentakel_Nachschub} @self ~onTimer:60
+  # Der Kopf taucht selten auf: das erste Mal nach 20 s, danach 25 s nach dem
+  # Abtauchen (gcd), also etwa alle 40 s. Geprüft wird alle 5 s.
+  - skill{s=Kraken_Auftauchen} @self ~onTimer:100
+  # Behält die Spieler im Blick, 60 Grad pro Sekunde
+  - rotatetowards{maxyaw=30;rotatepitch=false} @NearestPlayer{r=32} ~onTimer:10
+  - effect:particles{p=bubble_column_up;a=12;hs=2.5;vs=0.2;y=0.2;s=0.05} @self ~onTimer:10
+  # Keine Drops hier: BountyfulSeas gibt die Beute dem Fänger und würfelt für die
+  # Helfer (BossLoot), weil nur das Plugin weiß, an wessen Angel er hing.
+
+Kraken_Tentakel:
+  Type: SQUID
+  Display: '&3Tentakel'
+  Health: 140
+  Damage: 0
+  Armor: 4
+  Options:
+    NoAI: true
+    MovementSpeed: 0
+    KnockbackResistance: 1.0
+    Silent: true
+    PreventOtherDrops: true
+    Despawn: false
+  DamageModifiers:
+  - DROWNING 0
+  - SUFFOCATION 0
+  Skills:
+  - addtag{tag=bountyfulseas_boss} @self ~onSpawn
+  - model{mid=kraken_tentacle} @self ~onSpawn
+  # An diesem Tag erkennt BountyfulSeas einen Tentakel am Angelhaken
+  - addtag{tag=kraken_tentakel} @self ~onSpawn
+  - skill{s=Kraken_Tentakel_Start} @self ~onSpawn
+  - skill{s=Kraken_Tentakel_Tod} @self ~onDeath
+  # Verwundbar nur, solange jemand ihn mit der Angel festhält
+  - skill{s=Kraken_Tentakel_Treffer} @self ~onDamaged
+  - skill{s=Kraken_Tentakel_Smash} @self ~onTimer:160
+  - skill{s=Kraken_Tentakel_Greifen} @self ~onTimer:280
+  - rotatetowards{maxyaw=30;rotatepitch=false} @NearestPlayer{r=16} ~onTimer:10
+  - remove @self ~onLoad
+
+# ---------------------------------------------------------------------------
+# Angriffs-Marker: unsichtbar, ohne Hitbox. Zeigen den Angriff an der Stelle,
+# an der er einschlägt, kurz vorher an und lösen ihn dann selbst aus.
+# ---------------------------------------------------------------------------
+
+# Tentakel-Smash: roter Ring, 1,2 s später schlägt er hier ein.
+Kraken_Marker_Smash:
+  Type: INTERACTION
+  Options:
+    Height: 0
+    Width: 0
+  Skills:
+  - addtag{tag=bountyfulseas_boss} @self ~onSpawn
+  - skill{s=Kraken_Marker_Smash_Ablauf} @self ~onSpawn
+  - remove @self ~onLoad
+
+# Schockwelle des Kopfes: Ringe, die von innen nach außen laufen.
+Kraken_Marker_Schockwelle:
+  Type: INTERACTION
+  Options:
+    Height: 0
+    Width: 0
+  Skills:
+  - addtag{tag=bountyfulseas_boss} @self ~onSpawn
+  - skill{s=Kraken_Marker_Schockwelle_Ablauf} @self ~onSpawn
+  - remove @self ~onLoad
+
+# Effekt-Träger für Wasserfontänen (vfx_kraken_splash).
+Kraken_VFX_Splash:
+  Type: INTERACTION
+  Options:
+    Height: 0
+    Width: 0
+  Skills:
+  - addtag{tag=bountyfulseas_boss} @self ~onSpawn
+  - skill{s=Kraken_VFX_Splash_Ablauf} @self ~onSpawn
+  - remove @self ~onLoad

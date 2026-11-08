@@ -288,7 +288,9 @@ public final class FishSelector {
      * has to be true of the moment - the conditions - every one of them must hold.
      */
     private static boolean matches(Fish fish, WaterConditions where) {
-        if (fish.baitLocked() || fish.spawnWeight() <= 0) {
+        // Bait is not a property of the water: whoever calls leaves out what needs
+        // bait when the line has none, so the same pool serves every report too.
+        if (fish.spawnWeight() <= 0) {
             return false;
         }
         // A swarming fish is somewhere else entirely most of the time.
@@ -298,7 +300,6 @@ public final class FishSelector {
         return fish.allowsWaterType(where.waterType())
                 && fish.allowsTerrain(where.terrain())
                 && fish.allowsVegetation(where.vegetation())
-                && fish.allowsDepth(where.depth())
                 && waterModifiers(fish, where)
                 && allOf(fish.conditions(), where.conditions());
     }

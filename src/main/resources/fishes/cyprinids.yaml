@@ -15,7 +15,6 @@ eurasian_minnow:
 
   water_type: [river, lake]
   vegetation: [cold, temperate]
-  depth: [shallow]
   modifier: [swarm]
   condition: [day]
 
@@ -62,7 +61,6 @@ common_rudd:
 
   water_type: [river, lake]
   vegetation: [temperate]
-  depth: [shallow]
   condition: [day]
 
   spawn_weight: 115
@@ -85,7 +83,6 @@ crucian_carp:
   level: 1
 
   water_type: [river, lake]
-  depth: [shallow]
 
   spawn_weight: 110
   rarity: "common"
@@ -107,7 +104,6 @@ goldfish:
   level: 11
 
   water_type: [river, lake]
-  depth: [shallow]
 
   spawn_weight: 95
   rarity: "common"
@@ -150,7 +146,6 @@ tench:
 
   water_type: [river, lake]
   vegetation: [temperate, warm]
-  depth: [shallow]
 
   spawn_weight: 100
   rarity: "uncommon"

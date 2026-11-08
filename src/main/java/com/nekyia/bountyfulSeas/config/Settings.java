@@ -1,6 +1,6 @@
 package com.nekyia.bountyfulSeas.config;
 
-import com.nekyia.bountyfulSeas.level.CompletionRule;
+import com.nekyia.bountyfulSeas.level.ExperienceRule;
 
 import java.time.Duration;
 import java.util.List;
@@ -34,7 +34,9 @@ public record Settings(
         EnchantmentSettings enchantments,
         SizeSettings sizes,
         LevelSettings levels,
-        TierSettings tiers
+        TierSettings tiers,
+        BossSettings kraken,
+        BossSettings nessy
 ) {
 
     public Settings {
@@ -120,9 +122,10 @@ public record Settings(
      * @param shape     Z/K, the mortality-to-growth ratio; higher means big ones are rarer
      * @param smallest  the shortest catch, as a fraction of the fish's maximum
      * @param oddsOfMax one catch in this many comes up at the maximum length
+     * @param tailFrom  the fraction of the maximum above which each further cm is equally harder
      * @param brackets  the marks along the curve worth naming, longest first
      */
-    public record SizeSettings(double shape, double smallest, long oddsOfMax,
+    public record SizeSettings(double shape, double smallest, long oddsOfMax, double tailFrom,
                                List<Bracket> brackets) {
 
         public SizeSettings {
@@ -140,16 +143,29 @@ public record Settings(
     }
 
     /**
+     * A boss that very rarely takes the bait instead of a fish: the kraken in the
+     * ocean, Nessy in lakes.
+     *
+     * @param chance   per baited catch in its water, 0 to turn it off
+     * @param minLevel the angling level from which it can bite
+     * @param mob      the MythicMobs mob that is spawned
+     * @param trophyChance  how likely the angler it bit gets its trophy, 0 to 1;
+     *                      helpers roll at 1/25 of it, like for every drop
+     */
+    public record BossSettings(double chance, int minLevel, String mob, double trophyChance) {
+    }
+
+    /**
      * The angling level.
      *
-     * <p>What a level costs is not here. It is worked out from the roster, so the
-     * last level and every threshold follow the fish files rather than a number
-     * somebody has to remember to raise.
-     *
-     * @param experiencePerStep experience for the first milestone of any fish
-     * @param completion        the levels priced off the roster, and how
+     * @param experience what a catch and a milestone pay
+     * @param costs      what each level after the first costs, in order
      */
-    public record LevelSettings(long experiencePerStep, CompletionRule completion) {
+    public record LevelSettings(ExperienceRule experience, List<Long> costs) {
+
+        public LevelSettings {
+            costs = List.copyOf(costs);
+        }
     }
 
     /**

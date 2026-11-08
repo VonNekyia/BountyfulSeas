@@ -59,7 +59,6 @@ ocellaris_clownfish:
 
   water_type: [ocean]
   vegetation: [warm]
-  depth: [shallow]
   modifier: [coral]
   condition: [day]
 
@@ -82,7 +81,6 @@ blue_tang:
 
   water_type: [ocean]
   vegetation: [warm]
-  depth: [shallow]
   modifier: [coral]
   condition: [day]
 
@@ -105,7 +103,6 @@ stoplight_parrotfish:
 
   water_type: [ocean]
   vegetation: [warm]
-  depth: [shallow]
   modifier: [coral]
   condition: [day]
 
@@ -150,7 +147,6 @@ red_lionfish:
 
   water_type: [ocean]
   vegetation: [warm]
-  depth: [shallow]
   condition: [night]
 
   spawn_weight: 18

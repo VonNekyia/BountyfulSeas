@@ -12,16 +12,18 @@ package com.nekyia.bountyfulSeas.stats;
  *
  * @param catches how many have been caught
  * @param longest longest ever caught, in cm
+ * @param bonusExperience size bonuses earned on this fish, which the count cannot tell
  */
 public record FishStats(
         String fishId,
         long catches,
-        double longest
+        double longest,
+        long bonusExperience
 ) {
 
     /** Nothing caught yet, so there is no best yet either. */
     public static FishStats none(String fishId) {
-        return new FishStats(fishId, 0, 0);
+        return new FishStats(fishId, 0, 0, 0);
     }
 
     public boolean caught() {

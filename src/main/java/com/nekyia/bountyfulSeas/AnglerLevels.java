@@ -18,10 +18,11 @@ import java.util.function.Supplier;
 /**
  * What level each angler is, kept where the fishing event can read it.
  *
- * <p>Experience is not stored. It is worked out from the catch totals that are
- * already kept: every milestone a player has passed is worth what the rule says,
- * and the sum of those is their experience. Nothing to write, nothing that can
- * drift out of step with the counts it is derived from, and no second table.
+ * <p>Experience is mostly not stored. It is worked out from the catch totals that
+ * are already kept - every catch, every first of a kind and every milestone passed
+ * is worth what the rule says - plus the size bonuses, which the counts cannot tell
+ * and so are kept beside them. Nothing that can drift out of step with the counts,
+ * and an old player is priced by the new rule the moment it is in place.
  *
  * <p>The cost is that working it out reads a player's whole row set, which is a
  * database call - and a bite has to be answered on the server thread. So the
@@ -91,10 +92,8 @@ final class AnglerLevels {
     /**
      * The experience a set of catch totals is worth.
      *
-     * <p>Every milestone passed on every fish, each priced by the rule. A fish that
-     * has since been deleted from the config contributes nothing, which is the
-     * honest answer: it is no longer part of the roster the curve is built from,
-     * so paying for it would put a player above a threshold that never counted it.
+     * <p>A fish that has since been deleted from the config contributes nothing:
+     * it is no longer part of the roster, and its tier, which prices it, is gone too.
      */
     private long experienceOf(Map<String, FishStats> totals) {
         FishLibrary library = fish.get();
@@ -106,11 +105,10 @@ final class AnglerLevels {
             if (definition == null) {
                 continue;
             }
-            for (Milestone milestone : Milestone.values()) {
-                if (caught.catches() >= milestone.required()) {
-                    experience += rule.forMilestone(milestone.step());
-                }
-            }
+            Milestone reached = Milestone.reached(caught.catches());
+            experience += rule.forTotals(definition.rarity().configName(), caught.catches(),
+                    reached == null ? 0 : reached.step());
+            experience += caught.bonusExperience();
         }
         return experience;
     }

@@ -4,6 +4,7 @@ import com.nekyia.bountyfulSeas.fish.Fish;
 import com.nekyia.bountyfulSeas.level.Progress;
 import com.nekyia.bountyfulSeas.stats.FishRecord;
 import com.nekyia.bountyfulSeas.stats.FishStats;
+import com.nekyia.bountyfulSeas.stats.Leaderboard;
 import de.mcterranova.terranovaLib.roseGUI.RoseGUI;
 import de.mcterranova.terranovaLib.roseGUI.RoseItem;
 import net.kyori.adventure.text.Component;
@@ -28,6 +29,9 @@ import java.util.Locale;
  * there is a stall every viewer pays for.
  */
 public final class RecordsMenu extends RoseGUI {
+
+    /** How many of the longest are listed under each fish. */
+    private static final int TOP = 5;
 
     private static final int[] FISH_SLOTS = {
             10, 11, 12, 13, 14, 15, 16,
@@ -110,6 +114,16 @@ public final class RecordsMenu extends RoseGUI {
                     lore.add(GuideText.line(GuideText.cm(behind) + " off the record",
                             NamedTextColor.DARK_GRAY));
                 }
+            }
+        }
+
+        List<Leaderboard.Standing> board = Leaderboard.longestOf(standings.everything(), fish.id());
+        if (board.size() > 1) {
+            lore.add(GuideText.blank());
+            for (int index = 0; index < Math.min(TOP, board.size()); index++) {
+                Leaderboard.Standing entry = board.get(index);
+                lore.add(GuideText.line((index + 1) + ". " + standings.nameOf(entry.player())
+                        + "  " + GuideText.cm(entry.value()), index == 0 ? NamedTextColor.GOLD : NamedTextColor.GRAY));
             }
         }
 

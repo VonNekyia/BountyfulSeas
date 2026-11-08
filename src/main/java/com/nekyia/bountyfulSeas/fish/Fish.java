@@ -38,7 +38,6 @@ public record Fish(
         Set<WaterType> waterTypes,
         Set<Terrain> terrains,
         Set<Vegetation> vegetations,
-        Set<Depth> depths,
         Set<Modifier> modifiers,
         Set<Condition> conditions,
         boolean baitLocked,
@@ -54,7 +53,6 @@ public record Fish(
         waterTypes = immutableCopy(waterTypes, WaterType.class);
         terrains = immutableCopy(terrains, Terrain.class);
         vegetations = immutableCopy(vegetations, Vegetation.class);
-        depths = immutableCopy(depths, Depth.class);
         modifiers = immutableCopy(modifiers, Modifier.class);
         conditions = immutableCopy(conditions, Condition.class);
     }
@@ -74,6 +72,18 @@ public record Fish(
      */
     public boolean hasOwnChance() {
         return catchChance > 0;
+    }
+
+    /** The tiers that only bite on a baited line. */
+    private static final Set<Rarity> BAITED_TIERS =
+            EnumSet.of(Rarity.RARE, Rarity.EPIC, Rarity.LEGENDARY, Rarity.MYTHIC);
+
+    /**
+     * Whether this only bites with bait: everything rare and up, and anything a
+     * definition marks bait_locked.
+     */
+    public boolean needsBait() {
+        return baitLocked || BAITED_TIERS.contains(rarity);
     }
 
     /** Whether this entry is an object rather than a fish, so it has no length. */
@@ -101,10 +111,6 @@ public record Fish(
 
     public boolean allowsVegetation(Vegetation value) {
         return allows(vegetations, value);
-    }
-
-    public boolean allowsDepth(Depth value) {
-        return allows(depths, value);
     }
 
     public boolean allowsModifier(Modifier value) {

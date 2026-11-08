@@ -71,15 +71,25 @@ swarms:
 #
 # With the defaults below, for a fish that reaches 100 cm:
 #
-#   half of all catches are under 41 cm
-#   4 in 100 are 75 cm or more
-#   3 in 1000 are 90 cm or more
-#   1 in 1000000 is the full 100 cm
+#   half of all catches are under 53 cm
+#   1 in 7 is 80 cm or more, where the even tail begins
+#   1 in 1000 reaches about 87 cm
+#   1 in 100000 reaches about 93.5 cm
+#   1 in 1000000 reaches about 96.7 cm
+#   1 in 10000000 is the full 100 cm
+#
+# A catch in the tail tells its odds in the catch message, as 1:N (x%).
 sizes:
   # Z/K, the mortality-to-growth ratio: how many fish die for every bit of
   # growing the survivors do. Real stocks sit around 1.5 to 3. Raise it and big
   # ones get rarer; lower it and the catch evens out.
-  shape: 3
+  shape: 1.5
+
+  # Left to itself the curve squeezes everything from 1 in 100 to the record into
+  # the last centimetres. Above this fraction of the maximum it switches: every
+  # further cm is equally harder, so the top end spreads out and big catches can be
+  # told apart. 1 turns it off.
+  tail-from: 0.80
 
   # The shortest a catch can be, as a fraction of that fish's maximum. This is
   # what min_length used to be, except it is one rule for every fish: a hook does
@@ -90,13 +100,15 @@ sizes:
   # record - the number in the fish file is not where the fish stop growing, it
   # is the length hardly anyone ever sees. Lengths are truncated to two decimals
   # rather than rounded, so a catch reads as the maximum only when it reached it.
-  record-odds: 1000000
+  record-odds: 10000000
 
   # The marks along the curve worth naming, used by /bs debug lengthvalue to say
   # what a length amounts to. A label and the fraction of catches that reach it;
   # write as many or as few as you like, in any order.
   brackets:
     - label: "a record"
+      chance: 0.0000001
+    - label: "1 in 1000000"
       chance: 0.000001
     - label: "1 in 100000"
       chance: 0.00001
@@ -111,97 +123,63 @@ sizes:
     - label: "above average"
       chance: 0.50
 
+# The kraken: very rarely, a baited line in the ocean hooks it instead of a fish.
+# It is a MythicMobs boss (content/mythicmobs/Kraken in the plugin repo), spawned
+# where the bobber was, and only ever one at a time. Without MythicMobs nothing
+# happens. chance is per baited ocean catch: 0.00004 is about 1 in 25000.
+# trophy-chance is how likely the angler it bit gets the trophy (the kraken's eye).
+# Lootshare: everyone else who fought it rolls for every drop - the trophy too -
+# at 1/25 of the angler's chance, and gets 1/25 of the experience.
+kraken:
+  chance: 0.00004
+  min-level: 6
+  mob: Kraken
+  trophy-chance: 0.01
+
+# Nessy: the same for lakes. Her fight is built around the rod - finding her in
+# the fog, holding her on the line, the last pull (content/mythicmobs/Nessy).
+nessy:
+  chance: 0.00004
+  min-level: 6
+  mob: Nessy
+  trophy-chance: 0.01
+
 # The angling level.
 #
 # Every fish carries a level in its definition and does not bite until the angler
-# has reached it - it is not simply rarer, it is not in the draw at all. Levels
-# come from milestones: each one a fish passes is worth
+# has reached it - it is not simply rarer, it is not in the draw at all.
 #
-#   experience = experience-per-step  x  which milestone it is (1 to 10)
-#                                     x  that fish's level
+# Every catch pays experience by its tier. The first catch of each kind pays
+# first-catch-multiplier times that, and a fish among the longest big-fish-share of
+# its kind adds big-fish-bonus of its value on top. Milestones still pay, but little:
+# the n-th pays n x experience-per-milestone-step.
 #
-# so a fish's tenth milestone pays ten times its first, and a hard fish pays
-# better than an easy one. Nothing is stored: the experience is worked out from
-# the catch counts, so it can never drift away from them.
+# Only the size bonus is stored. Everything else is worked out from the catch
+# counts, so changing a number here reprices every player at once - including
+# those who levelled before experience was paid per catch.
 #
 # Without a database there are no counts, so there is no level either - the gate
 # then stands open rather than locking every fish away forever.
 levels:
-  # Experience for the first milestone of any fish. The steps are flat multiples of
-  # it, so with 10 a fish pays 10, 20, 30 and so on up to 100 for its tenth.
-  experience-per-step: 10
+  experience-per-catch:
+    common: 10
+    uncommon: 15
+    rare: 30
+    epic: 80
+    legendary: 300
+    mythic: 1000
+    misc: 2
+    treasure: 20
+    signature: 0
+  first-catch-multiplier: 5
+  big-fish-share: 0.10
+  big-fish-bonus: 0.5
+  experience-per-milestone-step: 5
 
-  # What a level costs is not set here either. Each line below says how deep into
-  # every fish already open that level expects you to be - completed-at-milestone is
-  # the milestone, completion how much of it counts. A whole completion at milestone
-  # four means the level costs what milestone four on every open fish is worth, spent
-  # wherever you like: a budget, not a checklist.
-  #
-  # Adding a fish therefore raises every level above it by itself, and the last level
-  # is simply the highest one any fish is locked behind.
-  #
-  # This is a shape rather than an arithmetic. A milestone holds for three levels
-  # while the roster grows by four fish and then by two, so the raw cost per level
-  # lurches and sometimes falls - and a level that costs less than the one before it
-  # is not a level. The steps are therefore smoothed until they only ever climb,
-  # staying as close to this scale as that allows. Expect a level or two to land
-  # between the milestones named here; the scale is what it follows, not a promise.
-  #
-  # Milestones are paid flat but cost exponentially, which is why the milestone is
-  # the number that matters: the first is 1 catch, the second 5, the third 10, the
-  # fourth 20, the fifth 50, the sixth 100 and the tenth a thousand.
-  #
-  # Levels not named here are read across from the two around them, so naming every
-  # fifth level gives a slope rather than a staircase.
-  anchors:
-    - level: 2
-      completed-at-milestone: 1
-      completion: 1.00
-    - level: 3
-      completed-at-milestone: 2
-      completion: 1.00
-    - level: 4
-      completed-at-milestone: 2
-      completion: 1.00
-    - level: 5
-      completed-at-milestone: 3
-      completion: 1.00
-    - level: 6
-      completed-at-milestone: 3
-      completion: 1.00
-    - level: 7
-      completed-at-milestone: 3
-      completion: 1.00
-    - level: 8
-      completed-at-milestone: 4
-      completion: 1.00
-    - level: 9
-      completed-at-milestone: 4
-      completion: 1.00
-    - level: 10
-      completed-at-milestone: 4
-      completion: 1.00
-    - level: 11
-      completed-at-milestone: 5
-      completion: 1.00
-    - level: 12
-      completed-at-milestone: 5
-      completion: 1.00
-    - level: 13
-      completed-at-milestone: 5
-      completion: 1.00
-    - level: 14
-      completed-at-milestone: 5
-      completion: 1.00
-    - level: 15
-      completed-at-milestone: 6
-      completion: 1.00
-    # Nothing opens at sixteen yet. It is priced anyway, which is what puts it in
-    # front of people: the level exists, it costs what the ninth milestone is worth,
-    # and what it opens is still being built.
-    - level: 16
-      completed-at-milestone: 9
-      completion: 1.00
+  # What each level costs, from level 2 upwards: the first number takes you from 1
+  # to 2, the second from 2 to 3, and so on. The last level is one past the end.
+  # Sixteen opens nothing yet - it is priced anyway, so it is there to aim at.
+  costs: [100, 250, 450, 700, 1000, 1400, 1900, 2500, 3200, 4000, 5000, 6200, 7600, 9200, 25000]
 
 # The two sides of the table.
 #

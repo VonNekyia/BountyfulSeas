@@ -19,7 +19,7 @@ custom fish  ->  Nexo items
 
 - Reads `water_regions.bin` and resolves any block position to its water region.
 - Rolls a rarity tier, then an entry within it, from those that accept the water
-  type, terrain, climate, depth, modifiers and current world conditions.
+  type, terrain, climate, modifiers and current world conditions.
 - Generates a Nexo item definition for every fish, so a new fish only needs a
   texture drawn for it.
 - Keeps per-player catch totals, and shows them as a guide with milestones.
@@ -31,7 +31,7 @@ Five questions, in order. Any of them can end with vanilla keeping its fish.
 1. **Where is this?** The hook's position is resolved against the scanned water
    map. Unclassified water is left to vanilla.
 2. **What lives here?** Every entry is filtered against the spot: water type,
-   terrain, climate, depth, water modifiers, and what the world is doing. An
+   terrain, climate, water modifiers, and what the world is doing. An
    empty trait list places no restriction on that axis.
 3. **Which tier?** A rarity is drawn from the configured chances, counting only
    tiers actually present here.
@@ -50,37 +50,22 @@ it is not merely rarer below that, it is out of the draw entirely, so it never
 takes a share of the odds it cannot pay out. The guide shows what is still locked
 and at what level it opens.
 
-Levels come from milestones. Each one a fish passes is worth
+Every catch pays experience by its tier: 10 for a common, 15 uncommon, 30 rare,
+80 epic, 300 legendary, 1000 mythic and 2 for junk. The first catch of each kind
+pays five times that, and a fish among the longest tenth of its kind adds half its
+value again. Milestones still pay, but little: the *n*-th pays *n* x 5. After
+every catch the action bar shows what it paid and how far the level is along; a
+level-up adds a title and a sound.
 
-```
-experience = experience-per-step  x  which milestone it is (1 to 10)
-                                  x  that fish's level
-```
+What each level costs is a plain list in `config.yml` (`levels.costs`), from 100
+for level 2 up to 9 200 for level 15. Sixteen opens nothing yet and costs 25 000.
 
-so a fish's tenth milestone pays ten times its first - it took a thousand catches
-rather than one - and a hard fish pays better than an easy one, which is the
-reason to go after what has just opened up instead of staying in the shallows.
-
-Reaching level *n* costs `experience-base x (n - 1) ^ steepness` in total. With
-the shipped numbers:
-
-| Level | total xp | | one fish, all ten milestones | xp |
-|---|---|---|---|---|
-| 2 | 100 | | a level 1 fish | 1 375 |
-| 5 | 1 213 | | a level 5 fish | 6 875 |
-| 10 | 5 220 | | a level 10 fish | 13 750 |
-| 15 | 11 562 | | a level 15 fish | 20 625 |
-
-Fifteen levels, and every fish sits on one of them. They are spread by water as
-well as by rank, so each level opens something in the sea **and** something
-inland: nobody is stuck because they settled on a coast or a river.
-
-**Nothing about the level is stored.** Experience is worked out from the catch
-counts that are already kept, so there is no second table, no extra write, and no
-way for the two to drift apart. The cost is that working it out reads a player's
-whole row set - a database call, and a bite has to be answered on the server
-thread - so the answer is held in memory, refreshed when a player joins and again
-after any catch that crosses a milestone.
+**Almost nothing about the level is stored.** Experience is worked out from the
+catch counts that are already kept, so changing a number in the config reprices
+every player at once, including those who levelled under the old milestone rule.
+Only the size bonus is kept, in a `bonus_xp` column beside the counts, because only
+the longest catch is stored. The answer is held in memory, refreshed when a player
+joins and after every catch.
 
 The guide is where a player sees any of this: **Your Collection** carries the
 level, the experience bar and what is still owed to the next one, and **Angling
@@ -244,7 +229,6 @@ atlantic_herring:
 
   water_type: [ocean]
   vegetation: [cold, temperate]
-  depth: [shallow]
 
   spawn_weight: 140
   rarity: common

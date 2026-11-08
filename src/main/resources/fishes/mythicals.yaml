@@ -17,7 +17,6 @@ dreamer_anglerfish:
   level: 15
 
   water_type: [ocean]
-  depth: [deep]
   condition: [night, storm]
 
   spawn_weight: 1

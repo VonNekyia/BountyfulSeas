@@ -37,6 +37,7 @@ public final class FishLoader {
     private static final String KEY_WATER_TYPE = "water_type";
     private static final String KEY_TERRAIN = "terrain";
     private static final String KEY_VEGETATION = "vegetation";
+    /** No longer read: depth is out for now. Still accepted so older fish files load quietly. */
     private static final String KEY_DEPTH = "depth";
     private static final String KEY_MODIFIER = "modifier";
     private static final String KEY_CONDITION = "condition";
@@ -189,7 +190,6 @@ public final class FishLoader {
         Set<WaterType> waterTypes = enums(WaterType.class, file, id, section, KEY_WATER_TYPE, problems);
         Set<Terrain> terrains = enums(Terrain.class, file, id, section, KEY_TERRAIN, problems);
         Set<Vegetation> vegetations = enums(Vegetation.class, file, id, section, KEY_VEGETATION, problems);
-        Set<Depth> depths = enums(Depth.class, file, id, section, KEY_DEPTH, problems);
         Set<Modifier> modifiers = enums(Modifier.class, file, id, section, KEY_MODIFIER, problems);
         Set<Condition> conditions = enums(Condition.class, file, id, section, KEY_CONDITION, problems);
 
@@ -219,7 +219,7 @@ public final class FishLoader {
 
         return new Fish(id, category, name, item, lore,
                 maxLength, level,
-                waterTypes, terrains, vegetations, depths, modifiers, conditions,
+                waterTypes, terrains, vegetations, modifiers, conditions,
                 baitLocked, spawnWeight, catchChance, rarity, object, onEat);
     }
 

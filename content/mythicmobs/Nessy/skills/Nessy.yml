@@ -1,0 +1,795 @@
+# Nessy - Ablauf, Angriffe und Zahlen.
+#
+# Ein Kampf, den man mit der Angel führt, nicht mit dem Schwert allein.
+#
+# Phase 1 - Nebel (Sichtung)
+#   Nebel zieht über den See, Nessy ist nicht zu sehen und nicht zu treffen. Alle
+#   10 s kräuseln sich vier Wellen auf dem Wasser, eine davon ist sie: nur dort
+#   blinzeln kurz zwei grüne Augen, und nur dort hört man aus der Nähe ein tiefes
+#   Pochen. Wer seinen Schwimmer in die echte Welle wirft, hat sie gesichtet -
+#   sie hebt dort kurz den Kopf. Wer in eine falsche wirft, kriegt eine Wasserhose
+#   ab. Nach 3 Sichtungen (später 2) taucht sie auf.
+#
+# Phase 2 - Tauziehen
+#   Treffen kann man sie nur, solange jemand sie mit der Angel festhält, und wer
+#   sie hält, wird zu ihr ins Wasser gezogen (zurücklaufen!). Allein an der Leine
+#   halbiert sich der Schaden. Jede gehaltene Sekunde macht sie müder, je mehr
+#   Angler an ihr hängen, desto schneller. Erschöpft liegt sie 6 s still: keine
+#   Angriffe, 2,5-facher Schaden, ohne dass jemand halten muss.
+#   12 s ohne Leine: sie taucht ab, zurück in den Nebel.
+#   Angriffe, alle 7 s einer, jeder vorher angesagt:
+#     Halsschwung      "Duck dich!" - wer steht, wird vom Hals erwischt
+#     Sirenengesang    "Senk den Blick!" - wer sie dabei ansieht, wird betört und
+#                      ins Wasser gezogen. Wer nach unten schaut, ist sicher.
+#     Flutwelle        "Spring!" - ein Wasserring läuft nach außen, wer am Boden
+#                      steht, wenn er ankommt, wird umgerissen
+#   Ab der Hälfte ruft sie alle 20 s ihre Jungen. Die springen die Angler an, die
+#   sie halten, und beißen ihnen die Schnur durch - jemand muss sie beschützen.
+#
+# Phase 3 - Der letzte Zug (ab 30 % Leben)
+#   Sie reißt sich los und flieht. Wieder Wellen, diesmal fünf und schneller. Wer
+#   die echte erwischt, an dessen Leine hängt sie: jetzt muss jemand sie 10 s lang
+#   halten, während sie mit aller Kraft zieht und weiter singt. Reißt die Leine
+#   (4 s ohne Halt), erholt sie sich um 15 % und flieht wieder.
+#   Nach 10 s ist sie gestrandet: 15 s, 3-facher Schaden, nur jetzt kann man sie
+#   wirklich erlegen. Überlebt sie das, rutscht sie zurück und Phase 3 beginnt neu.
+#
+# Ist 2 min niemand in 64 Blöcken, oder läuft der Kampf 20 min, taucht sie ab und
+# ist weg. Wird ihr Chunk neu geladen (Neustart), ist sie ebenfalls weg.
+#
+# Die Angel-Seite liefert BountyfulSeas (BossHooks) über Tags:
+#   nessy_gehalten    an Nessy, solange ein Haken in ihr steckt (+1,5 s)
+#   boss_haelt        am Angler, der sie gerade hält (+1,5 s)
+#   nessy_angebissen  an einer Welle, in die ein Schwimmer geworfen wurde
+#   leine_reisst      setzen die Jungen am Angler: BountyfulSeas holt seinen Haken ein
+#
+# Variablen an Nessy
+#   phase             1 Nebel, 2 Tauziehen, 3 letzter Zug, 4 gestrandet
+#   sichtungen, noetig  Sichtungen bisher / bis sie auftaucht
+#   halter            wie viele Angler sie gerade halten, jede Sekunde neu gezählt
+#   muede             0 bis 100, bei 100 erschöpft
+#   erschoepft        0/1
+#   ohne_leine        Sekunden ohne Halt in Phase 2 und 3
+#   gebissen          0/1: in Phase 3 hängt sie an einer Leine
+#   zug               gehaltene Sekunden in Phase 3
+#   brut              0/1: ab der Hälfte kommen die Jungen
+#   leben_max, alter, leer  wie beim Kraken
+
+# ---------------------------------------------------------------------------
+# Start, Ende, Aufräumen
+# ---------------------------------------------------------------------------
+Nessy_Start:
+  Skills:
+  - setvariable{var=caster.phase;value=1;type=INTEGER} @self
+  - setvariable{var=caster.sichtungen;value=0;type=INTEGER} @self
+  - setvariable{var=caster.noetig;value=3;type=INTEGER} @self
+  - setvariable{var=caster.halter;value=0;type=INTEGER} @self
+  - setvariable{var=caster.muede;value=0;type=INTEGER} @self
+  - setvariable{var=caster.erschoepft;value=0;type=INTEGER} @self
+  - setvariable{var=caster.ohne_leine;value=0;type=INTEGER} @self
+  - setvariable{var=caster.gebissen;value=0;type=INTEGER} @self
+  - setvariable{var=caster.zug;value=0;type=INTEGER} @self
+  - setvariable{var=caster.brut;value=0;type=INTEGER} @self
+  - setvariable{var=caster.leben_max;value=350;type=INTEGER} @self
+  - setvariable{var=caster.beteiligt;value=0;type=INTEGER} @self
+  - setvariable{var=caster.spieler;value=0;type=INTEGER} @self
+  - setvariable{var=caster.alter;value=0;type=INTEGER} @self
+  - setvariable{var=caster.leer;value=0;type=INTEGER} @self
+  - defaultstate{mid=nessy;t=idle;s=hidden} @self
+  - sound{s=block.bell.resonate;v=3;p=0.5} @PlayersInRadius{r=64}
+  - sound{s=ambient.underwater.loop.additions.ultra_rare;v=3;p=0.6} @PlayersInRadius{r=64}
+  - message{m="&2&lNebel zieht über den See... etwas Uraltes ist erwacht."} @PlayersInRadius{r=64}
+  - sendtitle{title="&2Nebel über dem See";subtitle="&7Wirf deinen Schwimmer in die Welle, in der Augen blinzeln!";fadein=10;duration=80;fadeout=10} @PlayersInRadius{r=48}
+  - delay 60
+  - skill{s=Nessy_Wellen} @self
+
+Nessy_Tod:
+  Skills:
+  - state{mid=nessy;s=death} @self
+  - skill{s=Nessy_Aufraeumen} @self
+  - sound{s=entity.player.levelup;v=2;p=0.6} @PlayersInRadius{r=64}
+  - sound{s=block.bell.use;v=2;p=0.5} @PlayersInRadius{r=64}
+  - effect:particles{p=flash;a=1} @selflocation{y=2}
+  - effect:particles{p=happy_villager;a=120;hs=4;vs=2;y=1;s=0.2} @selflocation
+  - message{m="&2&lNessy ist bezwungen."} @PlayersInRadius{r=64}
+  - message{m="&7Irgendwer hat ein Foto gemacht... es ist leider verschwommen."} @PlayersInRadius{r=64}
+
+Nessy_Aufraeumen:
+  Skills:
+  - remove @MobsInRadius{types=Nessy_Junges,Nessy_Welle_Echt,Nessy_Welle_Falsch,Nessy_Marker_Flutwelle;r=48}
+
+# Alle 10 s: Kampfdauer und leere Arena mitzählen
+Nessy_Waechter:
+  Skills:
+  - variableadd{var=caster.alter;amount=10} @self
+  - skill{s=Nessy_Waechter_Leer}
+  - skill{s=Nessy_Waechter_Besetzt}
+  - skill{s=Nessy_Waechter_Zu_Alt}
+  - skill{s=Nessy_Waechter_Verlassen}
+
+Nessy_Waechter_Leer:
+  Conditions:
+  - playerwithin{d=64} false
+  Skills:
+  - variableadd{var=caster.leer;amount=10} @self
+
+Nessy_Waechter_Besetzt:
+  Conditions:
+  - playerwithin{d=64} true
+  Skills:
+  - setvariable{var=caster.leer;value=0;type=INTEGER} @self
+
+Nessy_Waechter_Zu_Alt:
+  Conditions:
+  - variableinrange{var=caster.alter;value=>1199} true
+  Skills:
+  - skill{s=Nessy_Verschwinden}
+
+Nessy_Waechter_Verlassen:
+  Conditions:
+  - variableinrange{var=caster.leer;value=>119} true
+  Skills:
+  - skill{s=Nessy_Verschwinden}
+
+Nessy_Verschwinden:
+  Skills:
+  - message{m="&2Der Nebel lichtet sich. Nessy ist fort - als wäre sie nie da gewesen."} @PlayersInRadius{r=64}
+  - sound{s=block.bell.resonate;v=2;p=0.8} @PlayersInRadius{r=64}
+  - skill{s=Nessy_Aufraeumen} @self
+  - remove @self
+
+Nessy_Laden:
+  Skills:
+  - skill{s=Nessy_Aufraeumen} @self
+  - remove @self
+
+# Wer in den Kampf kommt, bringt 250 Leben mit
+# wie beim Kraken: die meisten Spieler (Survival/Adventure), die je gleichzeitig da waren
+Nessy_Beteiligte:
+  Skills:
+  - setvariable{var=caster.spieler;value=0;type=INTEGER} @self
+  - skill{s=Nessy_Spieler_Zaehlen} @PlayersInRadius{r=32}
+  - skill{s=Nessy_Beteiligt_Neu} @self
+
+Nessy_Spieler_Zaehlen:
+  TargetConditions:
+  - gamemode{m=CREATIVE} false
+  - gamemode{m=SPECTATOR} false
+  Skills:
+  - variableadd{var=caster.spieler;amount=1} @self
+
+Nessy_Beteiligt_Neu:
+  Conditions:
+  - variableinrange{var=caster.spieler;value=><caster.var.beteiligt>} true
+  Skills:
+  - variableadd{var=caster.beteiligt;amount=1} @self
+  - variableadd{var=caster.leben_max;amount=250} @self
+  - setmaxhealth{amount=<caster.var.leben_max>;mode=SCALE} @self
+
+# Nebel in Phase 1 und 3
+Nessy_Nebel:
+  Conditions:
+  - variableequals{var=caster.phase;value=2} false
+  - variableequals{var=caster.phase;value=4} false
+  Skills:
+  - effect:particles{p=campfire_cosy_smoke;a=14;hs=14;vs=0.6;y=1.2;s=0.005} @selflocation
+
+# ---------------------------------------------------------------------------
+# Schaden
+# ---------------------------------------------------------------------------
+Nessy_Treffer:
+  Conditions:
+  - damagecause{c=KILL} false
+  - damagecause{c=VOID} false
+  Skills:
+  - skill{s=Nessy_Treffer_Nebel}
+  - skill{s=Nessy_Treffer_Flucht}
+  - skill{s=Nessy_Treffer_Frei}
+  - skill{s=Nessy_Treffer_Allein}
+  - skill{s=Nessy_Treffer_Erschoepft}
+  - skill{s=Nessy_Treffer_Gestrandet}
+  - skill{s=Nessy_Treffer_Letzter_Zug_Beginnt}
+
+Nessy_Treffer_Nebel:
+  Conditions:
+  - variableequals{var=caster.phase;value=1} true
+  Skills:
+  - cancelevent
+  - actionmessage{m="&7Da ist nur Nebel. Such sie in den Wellen!"} @trigger
+
+Nessy_Treffer_Flucht:
+  Conditions:
+  - variableequals{var=caster.phase;value=3} true
+  Skills:
+  - cancelevent
+  - actionmessage{m="&7Sie ist zu weit weg - halt die Leine, zieh sie an Land!"} @trigger
+
+Nessy_Treffer_Frei:
+  Conditions:
+  - variableequals{var=caster.phase;value=2} true
+  - variableequals{var=caster.erschoepft;value=0} true
+  - hastag{tag=nessy_gehalten} false
+  Skills:
+  - cancelevent
+  - sound{s=entity.generic.splash;v=1;p=1.4} @trigger
+  - actionmessage{m="&eSie weicht aus! Halte sie mit der Angel fest, dann trifft man sie."} @trigger
+
+Nessy_Treffer_Allein:
+  Conditions:
+  - variableequals{var=caster.phase;value=2} true
+  - variableequals{var=caster.erschoepft;value=0} true
+  - hastag{tag=nessy_gehalten} true
+  - variableinrange{var=caster.halter;value=<2} true
+  Skills:
+  - modifydamage{amount=0.5;action=MULTIPLY}
+
+Nessy_Treffer_Erschoepft:
+  Conditions:
+  - variableequals{var=caster.phase;value=2} true
+  - variableequals{var=caster.erschoepft;value=1} true
+  Skills:
+  - modifydamage{amount=2.5;action=MULTIPLY}
+
+Nessy_Treffer_Gestrandet:
+  Conditions:
+  - variableequals{var=caster.phase;value=4} true
+  Skills:
+  - modifydamage{amount=3;action=MULTIPLY}
+
+# Ab 30 %: sie reißt sich los
+Nessy_Treffer_Letzter_Zug_Beginnt:
+  Conditions:
+  - variableequals{var=caster.phase;value=2} true
+  - healthpercent{p=<0.3} true
+  Skills:
+  - cancelevent
+  - skill{s=Nessy_Flucht} @self
+
+# ---------------------------------------------------------------------------
+# Phase 1 und 3: Wellen
+# ---------------------------------------------------------------------------
+Nessy_Wellen_Takt:
+  Skills:
+  - skill{s=Nessy_Wellen_Nebel}
+  - skill{s=Nessy_Wellen_Flucht}
+
+Nessy_Wellen_Nebel:
+  Conditions:
+  - variableequals{var=caster.phase;value=1} true
+  Skills:
+  - skill{s=Nessy_Wellen} @self
+
+Nessy_Wellen_Flucht:
+  Conditions:
+  - variableequals{var=caster.phase;value=3} true
+  - variableequals{var=caster.gebissen;value=0} true
+  Skills:
+  - skill{s=Nessy_Wellen} @self
+
+# Eine echte, drei falsche (in Phase 3 vier). Alle erscheinen dort, wo sie
+# angebissen hat; BountyfulSeas (BossHooks) verteilt sie binnen 5 Ticks auf freies
+# Wasser 3 bis 9 Blöcke davon, mindestens 3 voneinander, und setzt dann
+# boss_platziert. Erst danach zeigen sie sich.
+Nessy_Wellen:
+  Skills:
+  - remove @MobsInRadius{types=Nessy_Welle_Echt,Nessy_Welle_Falsch;r=48}
+  - sound{s=entity.fish.swim;v=2;p=0.6} @PlayersInRadius{r=40}
+  - summon{type=Nessy_Welle_Echt;amount=1} @spawnLocation
+  - summon{type=Nessy_Welle_Falsch;amount=3} @spawnLocation
+  - skill{s=Nessy_Wellen_Mehr}
+
+Nessy_Wellen_Mehr:
+  Conditions:
+  - variableequals{var=caster.phase;value=3} true
+  Skills:
+  - summon{type=Nessy_Welle_Falsch;amount=1} @spawnLocation
+
+# Jede Welle sieht gleich aus - nur die echte blinzelt und pocht.
+Nessy_Welle_Echt_Ablauf:
+  Skills:
+  - delay 10
+  - effect:particlering{p=splash;radius=1.6;points=16;a=2;repeat=180;repeatInterval=4} @selflocation{y=0.1}
+  - effect:particles{p=bubble_pop;a=4;hs=1;vs=0;y=0.1;s=0.02;repeat=90;repeatInterval=2} @selflocation
+  - delay 30
+  - skill{s=Nessy_Welle_Blinzeln}
+  - delay 50
+  - skill{s=Nessy_Welle_Blinzeln}
+  - delay 50
+  - skill{s=Nessy_Welle_Blinzeln}
+  - delay 50
+  - remove @self
+
+Nessy_Welle_Blinzeln:
+  Skills:
+  - effect:particles{p=dust;color=#b8ff6a;size=0.9;a=1;x=-0.3;y=0.25;repeat=6;repeatInterval=1} @selflocation
+  - effect:particles{p=dust;color=#b8ff6a;size=0.9;a=1;x=0.3;y=0.25;repeat=6;repeatInterval=1} @selflocation
+  - sound{s=entity.warden.heartbeat;v=0.6;p=0.5} @PlayersInRadius{r=8}
+
+Nessy_Welle_Falsch_Ablauf:
+  Skills:
+  - delay 10
+  - effect:particlering{p=splash;radius=1.6;points=16;a=2;repeat=180;repeatInterval=4} @selflocation{y=0.1}
+  - effect:particles{p=bubble_pop;a=4;hs=1;vs=0;y=0.1;s=0.02;repeat=90;repeatInterval=2} @selflocation
+  - delay 180
+  - remove @self
+
+# Falsche Welle erwischt: Wasserhose unter dem, der hineingeworfen hat
+Nessy_Welle_Falsch_Pruefen:
+  Conditions:
+  - hastag{tag=nessy_angebissen} true
+  Skills:
+  - removetag{tag=nessy_angebissen} @self
+  - sound{s=entity.player.splash.high_speed;v=2;p=0.8} @self
+  - effect:particles{p=splash;a=120;hs=0.6;vs=3;y=1.5;s=0.3} @selflocation
+  - effect:particles{p=cloud;a=40;hs=0.5;vs=2;y=1;s=0.05} @selflocation
+  - skill{s=Nessy_Wasserhose} @PlayersInRadius{r=20;limit=1;sort=NEAREST}
+  - remove @self
+
+Nessy_Wasserhose:
+  Skills:
+  - message{m="&7Nur eine Welle... und sie war nicht erfreut."} @target
+  - effect:particles{p=splash;a=80;hs=0.6;vs=2;y=1;s=0.4} @target
+  - damage{a=4} @target
+  - throw{velocity=1;velocityY=1.6} @target
+
+# Nessy sieht alle 5 Ticks nach, ob jemand in die echte Welle geworfen hat
+Nessy_Wellen_Pruefen:
+  Skills:
+  - skill{s=Nessy_Welle_Erwischt} @MobsInRadius{types=Nessy_Welle_Echt;r=48}
+
+Nessy_Welle_Erwischt:
+  TargetConditions:
+  - hastag{tag=nessy_angebissen} true
+  Skills:
+  - teleport @target
+  - skill{s=Nessy_Aufraeumen_Wellen} @self
+  - skill{s=Nessy_Sichtung}
+  - skill{s=Nessy_Biss}
+
+Nessy_Aufraeumen_Wellen:
+  Skills:
+  - remove @MobsInRadius{types=Nessy_Welle_Echt,Nessy_Welle_Falsch;r=48}
+
+# Phase 1: gesichtet
+Nessy_Sichtung:
+  Conditions:
+  - variableequals{var=caster.phase;value=1} true
+  Skills:
+  - variableadd{var=caster.sichtungen;amount=1} @self
+  - state{mid=nessy;s=peek} @self
+  - sound{s=entity.dolphin.splash;v=2;p=0.5} @PlayersInRadius{r=48}
+  - effect:particles{p=splash;a=100;hs=1.5;vs=2;y=1;s=0.3} @selflocation
+  - message{m="&a&lEine Sichtung! &7(<caster.var.sichtungen>/<caster.var.noetig>)"} @PlayersInRadius{r=48}
+  - skill{s=Nessy_Sichtung_Genug}
+  - skill{s=Nessy_Sichtung_Genug_Kurz}
+
+Nessy_Sichtung_Genug:
+  Conditions:
+  - variableequals{var=caster.noetig;value=3} true
+  - variableinrange{var=caster.sichtungen;value=>2} true
+  Skills:
+  - skill{s=Nessy_Auftauchen} @self
+
+# Nach einmal Abtauchen reichen zwei Sichtungen
+Nessy_Sichtung_Genug_Kurz:
+  Conditions:
+  - variableequals{var=caster.noetig;value=2} true
+  - variableequals{var=caster.sichtungen;value=2} true
+  Skills:
+  - skill{s=Nessy_Auftauchen} @self
+
+# ---------------------------------------------------------------------------
+# Phase 2: Tauziehen
+# ---------------------------------------------------------------------------
+Nessy_Auftauchen:
+  Skills:
+  - setvariable{var=caster.phase;value=2;type=INTEGER} @self
+  - setvariable{var=caster.sichtungen;value=0;type=INTEGER} @self
+  - setvariable{var=caster.muede;value=0;type=INTEGER} @self
+  - setvariable{var=caster.ohne_leine;value=0;type=INTEGER} @self
+  - defaultstate{mid=nessy;t=idle;s=idle;li=0} @self
+  - state{mid=nessy;s=emerge} @self
+  - look{immediately=true;force=true} @NearestPlayer{r=32}
+  - rotatetowards{maxyaw=360;rotatepitch=false} @NearestPlayer{r=32}
+  - sound{s=entity.ravager.roar;v=3;p=0.5} @PlayersInRadius{r=64}
+  - sound{s=block.bell.resonate;v=3;p=1.2} @PlayersInRadius{r=64}
+  - effect:particles{p=splash;a=250;hs=4;vs=3;y=1;s=0.5} @selflocation
+  - sendtitle{title="&2&lNessy erhebt sich!";subtitle="&7Halte sie an der Angel - nur dann trifft man sie!";fadein=5;duration=70;fadeout=10} @PlayersInRadius{r=48}
+  - message{m="&7Je mehr an der Leine hängen, desto schneller ermüdet sie. &8Tipp - Angel in die Zweithand, Waffe in die Haupthand."} @PlayersInRadius{r=64}
+
+Nessy_Tauziehen:
+  Conditions:
+  - variableequals{var=caster.phase;value=2} true
+  - variableequals{var=caster.erschoepft;value=0} true
+  Skills:
+  - setvariable{var=caster.halter;value=0;type=INTEGER} @self
+  - skill{s=Nessy_Halter_Zaehlen} @PlayersInRadius{r=32}
+  - skill{s=Nessy_Tauziehen_Gehalten}
+  - skill{s=Nessy_Tauziehen_Frei}
+
+# Jeder Angler an der Leine: +4 Müdigkeit pro Sekunde
+Nessy_Halter_Zaehlen:
+  TargetConditions:
+  - hastag{tag=boss_haelt} true
+  Skills:
+  - variableadd{var=caster.halter;amount=1} @self
+  - variableadd{var=caster.muede;amount=4} @self
+
+Nessy_Tauziehen_Gehalten:
+  Conditions:
+  - hastag{tag=nessy_gehalten} true
+  Skills:
+  - setvariable{var=caster.ohne_leine;value=0;type=INTEGER} @self
+  - variableadd{var=caster.muede;amount=4} @self
+  - skill{s=Nessy_Zerren} @PlayersInRadius{r=32}
+  - actionmessage{m="&aNessy ermüdet &f<caster.var.muede>&7/100  &8(<caster.var.halter> an der Leine)"} @PlayersInRadius{r=32}
+  - skill{s=Nessy_Erschoepfung}
+
+# Sie zieht jeden, der sie hält, Richtung See - zurücklaufen!
+Nessy_Zerren:
+  TargetConditions:
+  - hastag{tag=boss_haelt} true
+  Skills:
+  - pull{velocity=0.35} @target
+  - sound{s=entity.fishing_bobber.retrieve;v=0.8;p=0.6} @target
+
+Nessy_Tauziehen_Frei:
+  Conditions:
+  - hastag{tag=nessy_gehalten} false
+  Skills:
+  - variableadd{var=caster.ohne_leine;amount=1} @self
+  - actionmessage{m="&eNessy ist frei! &7Haltet sie an der Leine &8(<caster.var.ohne_leine>/12 s)"} @PlayersInRadius{r=32}
+  - skill{s=Nessy_Abtauchen_Zu_Lange}
+
+Nessy_Abtauchen_Zu_Lange:
+  Conditions:
+  - variableinrange{var=caster.ohne_leine;value=>11} true
+  Skills:
+  - state{mid=nessy;s=submerge} @self
+  - defaultstate{mid=nessy;t=idle;s=hidden;li=0} @self
+  - sound{s=entity.player.splash.high_speed;v=2;p=0.5} @self
+  - message{m="&2Nessy gleitet zurück in den Nebel."} @PlayersInRadius{r=64}
+  - remove @MobsInRadius{types=Nessy_Junges;r=48}
+  - setvariable{var=caster.phase;value=1;type=INTEGER} @self
+  - setvariable{var=caster.noetig;value=2;type=INTEGER} @self
+  - setvariable{var=caster.sichtungen;value=0;type=INTEGER} @self
+  - setvariable{var=caster.muede;value=0;type=INTEGER} @self
+  - delay 30
+  - skill{s=Nessy_Wellen} @self
+
+Nessy_Erschoepfung:
+  Conditions:
+  - variableinrange{var=caster.muede;value=>99} true
+  Skills:
+  - setvariable{var=caster.erschoepft;value=1;type=INTEGER} @self
+  - setvariable{var=caster.muede;value=0;type=INTEGER} @self
+  - state{mid=nessy;s=tired} @self
+  - potion{type=GLOWING;duration=120;level=0;p=false} @self
+  - sound{s=entity.player.attack.crit;v=2;p=0.6} @PlayersInRadius{r=48}
+  - message{m="&6&lNessy ist erschöpft - jetzt zuschlagen!"} @PlayersInRadius{r=48}
+  - delay 120
+  - setvariable{var=caster.erschoepft;value=0;type=INTEGER} @self
+
+# ---------------------------------------------------------------------------
+# Angriffe (Phase 2 und, nur der Gesang, Phase 3)
+# ---------------------------------------------------------------------------
+Nessy_Angriff:
+  Skills:
+  - skill{s=Nessy_Angriff_Tauziehen}
+  - skill{s=Nessy_Angriff_Letzter_Zug}
+
+Nessy_Angriff_Tauziehen:
+  Conditions:
+  - variableequals{var=caster.phase;value=2} true
+  - variableequals{var=caster.erschoepft;value=0} true
+  - playerwithin{d=32} true
+  Skills:
+  - randomskill{skills=Nessy_Halsschwung,Nessy_Sirenengesang,Nessy_Flutwelle} @self
+
+Nessy_Angriff_Letzter_Zug:
+  Conditions:
+  - variableequals{var=caster.phase;value=3} true
+  - variableequals{var=caster.gebissen;value=1} true
+  Skills:
+  - skill{s=Nessy_Sirenengesang} @self
+
+# Halsschwung: holt 3 s mit dem Hals aus, gelber Ring auf Kopfhöhe. Dann zerschlägt
+# er jedes Boot im Umkreis von 10 Blöcken, und nur wer abgetaucht ist (Augen unter
+# Wasser), überlebt. In flachem Wasser: schwimmen (Sprint im Wasser) reicht.
+# Den Treffer macht BountyfulSeas (BossHooks.swing) auf den Tag nessy_halsschwung.
+Nessy_Halsschwung:
+  Skills:
+  - state{mid=nessy;s=sweep;lo=0} @self
+  - sound{s=entity.ravager.step;v=2;p=0.5} @PlayersInRadius{r=24}
+  - sendtitle{title="";subtitle="&b&lTauch ab!";fadein=0;duration=60;fadeout=5} @PlayersInRadius{r=12}
+  - effect:particlering{p=dust;color=#ffd23a;size=1.3;radius=7;points=40;a=1;repeat=60;repeatInterval=1} @selflocation{y=1.7}
+  - delay 60
+  - sound{s=entity.player.attack.sweep;v=3;p=0.5} @PlayersInRadius{r=24}
+  - effect:particlering{p=sweep_attack;radius=6;points=24;a=1} @selflocation{y=1.6}
+  - addtag{tag=nessy_halsschwung} @self
+
+# Sirenengesang: drei Töne, Notenwirbel. Wer am Ende nicht nach unten schaut, ist betört.
+Nessy_Sirenengesang:
+  Skills:
+  - state{mid=nessy;s=sing} @self
+  - sendtitle{title="";subtitle="&d&lSenk den Blick!";fadein=0;duration=60;fadeout=10} @PlayersInRadius{r=28}
+  - effect:particles{p=note;a=3;hs=1.5;vs=1;y=3;s=1;repeat=60;repeatInterval=2} @self
+  - sound{s=block.note_block.chime;v=3;p=0.7} @PlayersInRadius{r=28}
+  - delay 20
+  - sound{s=block.note_block.chime;v=3;p=0.9} @PlayersInRadius{r=28}
+  - delay 20
+  - sound{s=block.note_block.chime;v=3;p=0.6} @PlayersInRadius{r=28}
+  - delay 20
+  - skill{s=Nessy_Betoert} @PlayersInRadius{r=28}
+  - skill{s=Nessy_Widerstanden} @PlayersInRadius{r=28}
+
+# Pitch über 45 heißt: deutlich nach unten geschaut
+Nessy_Betoert:
+  TargetConditions:
+  - pitch{p=<45} true
+  Skills:
+  - message{m="&dDer Gesang betört dich - du gehst auf sie zu..."} @target
+  - potion{type=NAUSEA;duration=100;level=0;p=false} @target
+  - potion{type=SLOWNESS;duration=60;level=1;p=false} @target
+  - pull{velocity=1.6} @target
+  - damage{a=12} @target
+
+Nessy_Widerstanden:
+  TargetConditions:
+  - pitch{p=<45} false
+  Skills:
+  - actionmessage{m="&aDu widerstehst dem Gesang."} @target
+
+# Flutwelle: schlägt aufs Wasser, ein Ring läuft nach außen. Nur wer gerade in der
+# Luft ist, entgeht ihr: an Land springen. Im Wasser und im Boot trifft sie immer -
+# den Halsschwung übersteht man dort nur abgetaucht.
+Nessy_Flutwelle:
+  Skills:
+  - state{mid=nessy;s=slam} @self
+  - sendtitle{title="";subtitle="&b&lSpring über die Welle!";fadein=0;duration=40;fadeout=5} @PlayersInRadius{r=24}
+  - effect:particlering{p=dust;color=#3aa0ff;size=1.6;radius=3;points=24;a=1;repeat=20;repeatInterval=1} @selflocation{y=0.3}
+  - sound{s=entity.elder_guardian.ambient;v=2;p=1.4} @PlayersInRadius{r=24}
+  - delay 20
+  - sound{s=entity.generic.splash;v=3;p=0.5} @PlayersInRadius{r=24}
+  - summon{type=Nessy_Marker_Flutwelle;amount=1} @selflocation
+
+Nessy_Marker_Flutwelle_Ablauf:
+  Skills:
+  - skill{s=Nessy_Flutwelle_Ring_3}
+  - delay 4
+  - skill{s=Nessy_Flutwelle_Ring_6}
+  - delay 4
+  - skill{s=Nessy_Flutwelle_Ring_9}
+  - delay 4
+  - skill{s=Nessy_Flutwelle_Ring_12}
+  - delay 4
+  - skill{s=Nessy_Flutwelle_Ring_15}
+  - delay 4
+  - skill{s=Nessy_Flutwelle_Ring_18}
+  - delay 2
+  - remove @self
+
+Nessy_Flutwelle_Ring_3:
+  Skills:
+  - effect:particlering{p=splash;radius=3;points=30;a=3} @selflocation{y=0.4}
+  - skill{s=Nessy_Flutwelle_Trifft} @PlayersInRing{min=1.5;max=4.5}
+Nessy_Flutwelle_Ring_6:
+  Skills:
+  - effect:particlering{p=splash;radius=6;points=50;a=3} @selflocation{y=0.4}
+  - skill{s=Nessy_Flutwelle_Trifft} @PlayersInRing{min=4.5;max=7.5}
+Nessy_Flutwelle_Ring_9:
+  Skills:
+  - effect:particlering{p=splash;radius=9;points=70;a=3} @selflocation{y=0.4}
+  - skill{s=Nessy_Flutwelle_Trifft} @PlayersInRing{min=7.5;max=10.5}
+Nessy_Flutwelle_Ring_12:
+  Skills:
+  - effect:particlering{p=splash;radius=12;points=90;a=3} @selflocation{y=0.4}
+  - skill{s=Nessy_Flutwelle_Trifft} @PlayersInRing{min=10.5;max=13.5}
+Nessy_Flutwelle_Ring_15:
+  Skills:
+  - effect:particlering{p=splash;radius=15;points=110;a=3} @selflocation{y=0.4}
+  - skill{s=Nessy_Flutwelle_Trifft} @PlayersInRing{min=13.5;max=16.5}
+Nessy_Flutwelle_Ring_18:
+  Skills:
+  - effect:particlering{p=splash;radius=18;points=130;a=3} @selflocation{y=0.4}
+  - skill{s=Nessy_Flutwelle_Trifft} @PlayersInRing{min=16.5;max=19.5}
+
+Nessy_Flutwelle_Trifft:
+  Skills:
+  - skill{s=Nessy_Flutwelle_Boden} @target
+  - skill{s=Nessy_Flutwelle_Wasser} @target
+  - skill{s=Nessy_Flutwelle_Boot} @target
+
+Nessy_Flutwelle_Boden:
+  TargetConditions:
+  - onGround true
+  - mounted false
+  Skills:
+  - skill{s=Nessy_Flutwelle_Schlag} @target
+
+Nessy_Flutwelle_Wasser:
+  TargetConditions:
+  - onGround false
+  - inLiquid true
+  - mounted false
+  Skills:
+  - skill{s=Nessy_Flutwelle_Schlag} @target
+
+Nessy_Flutwelle_Boot:
+  TargetConditions:
+  - mounted true
+  Skills:
+  - damage{a=6} @target
+  - actionmessage{m="&bDie Welle wirft dein Boot herum!"} @target
+  - effect:particles{p=splash;a=40;hs=0.8;vs=0.6;y=0.5;s=0.3} @target
+
+Nessy_Flutwelle_Schlag:
+  Skills:
+  - damage{a=6} @target
+  - throw{velocity=2.5;velocityY=1} @target
+  - effect:particles{p=splash;a=40;hs=0.6;vs=0.6;y=0.5;s=0.3} @target
+
+# Ab der Hälfte: ihre Jungen
+# Nur eine Brut zur Zeit: neue Junge erst, wenn die alten erledigt sind.
+Nessy_Brut:
+  Conditions:
+  - variableequals{var=caster.phase;value=2} true
+  - healthpercent{p=<0.5} true
+  - mobsinradius{types=Nessy_Junges;a=<1;r=48} true
+  Skills:
+  - skill{s=Nessy_Brut_Erstmals}
+  - sound{s=entity.axolotl.splash;v=2;p=1.4} @PlayersInRadius{r=32}
+  - summon{type=Nessy_Junges;amount=3;radius=5} @selflocation
+
+Nessy_Brut_Erstmals:
+  Conditions:
+  - variableequals{var=caster.brut;value=0} true
+  Skills:
+  - setvariable{var=caster.brut;value=1;type=INTEGER} @self
+  - message{m="&a&lNessy ruft ihre Jungen! &7Schützt die, die sie halten - die Kleinen beißen Schnüre durch."} @PlayersInRadius{r=48}
+
+Nessy_Junges_Start:
+  Skills:
+  - state{mid=nessy_baby;s=spawn} @self
+  - effect:particles{p=splash;a=30;hs=0.4;vs=0.6;y=0.3;s=0.2} @selflocation
+
+# Alle 2 s: springt einen Angler an, der Nessy hält - sonst irgendwen in der Nähe.
+Nessy_Junges_Sprung:
+  Skills:
+  - skill{s=Nessy_Junges_Ziel} @PlayersInRadius{r=16;limit=1;sort=NEAREST}
+
+Nessy_Junges_Ziel:
+  Skills:
+  - look{immediately=true;force=true} @target
+  - state{mid=nessy_baby;s=lunge} @self
+  - effect:particleline{p=dust;color=#9fd27a;size=0.8;distanceBetween=0.4;fromOrigin=true;repeat=10;repeatInterval=1} @target
+  - delay 10
+  # NoAI: Geschwindigkeit wirkt nicht, also springt es per Teleport; die Animation zeigt den Sprung.
+  - teleport @target
+  - delay 6
+  - skill{s=Nessy_Junges_Biss} @PlayersInRadius{r=2}
+
+Nessy_Junges_Biss:
+  Skills:
+  - damage{a=3} @target
+  - skill{s=Nessy_Junges_Schnur} @target
+
+Nessy_Junges_Schnur:
+  TargetConditions:
+  - hastag{tag=boss_haelt} true
+  Skills:
+  - addtag{tag=leine_reisst} @target
+  - sound{s=entity.item.break;v=1;p=1.6} @target
+  - message{m="&cEin Junges hat deine Schnur durchgebissen!"} @target
+
+Nessy_Junges_Tod:
+  Skills:
+  - state{mid=nessy_baby;s=death} @self
+  - sound{s=entity.axolotl.death;v=1;p=1.2} @self
+  - effect:particles{p=splash;a=20;hs=0.3;vs=0.4;y=0.3;s=0.2} @selflocation
+
+# ---------------------------------------------------------------------------
+# Phase 3: der letzte Zug
+# ---------------------------------------------------------------------------
+Nessy_Flucht:
+  Skills:
+  - setvariable{var=caster.phase;value=3;type=INTEGER} @self
+  - setvariable{var=caster.gebissen;value=0;type=INTEGER} @self
+  - setvariable{var=caster.zug;value=0;type=INTEGER} @self
+  - setvariable{var=caster.erschoepft;value=0;type=INTEGER} @self
+  - remove @MobsInRadius{types=Nessy_Junges;r=48}
+  - state{mid=nessy;s=submerge} @self
+  - defaultstate{mid=nessy;t=idle;s=hidden;li=0} @self
+  - sound{s=entity.ravager.roar;v=3;p=0.7} @PlayersInRadius{r=64}
+  - sendtitle{title="&2&lSie reißt sich los!";subtitle="&7Findet sie - und lasst die Leine nicht mehr los.";fadein=5;duration=50;fadeout=10} @PlayersInRadius{r=48}
+  - delay 30
+  - delay 30
+  - skill{s=Nessy_Wellen} @self
+
+# Echte Welle in Phase 3 erwischt: sie hängt an der Leine
+Nessy_Biss:
+  Conditions:
+  - variableequals{var=caster.phase;value=3} true
+  Skills:
+  - setvariable{var=caster.gebissen;value=1;type=INTEGER} @self
+  - setvariable{var=caster.zug;value=0;type=INTEGER} @self
+  - setvariable{var=caster.ohne_leine;value=-2;type=INTEGER} @self
+  - defaultstate{mid=nessy;t=idle;s=idle;li=0} @self
+  - state{mid=nessy;s=fight_line} @self
+  - sound{s=entity.fishing_bobber.splash;v=3;p=0.5} @PlayersInRadius{r=48}
+  - effect:particles{p=splash;a=200;hs=2;vs=2;y=1;s=0.5} @selflocation
+  - sendtitle{title="&a&lSie hängt an der Leine!";subtitle="&7Haltet sie 10 Sekunden - dann liegt sie am Ufer.";fadein=0;duration=50;fadeout=10} @PlayersInRadius{r=48}
+
+Nessy_Letzter_Zug_Takt:
+  Conditions:
+  - variableequals{var=caster.phase;value=3} true
+  - variableequals{var=caster.gebissen;value=1} true
+  Skills:
+  - skill{s=Nessy_Letzter_Zug_Gehalten}
+  - skill{s=Nessy_Letzter_Zug_Frei}
+
+Nessy_Letzter_Zug_Gehalten:
+  Conditions:
+  - hastag{tag=nessy_gehalten} true
+  Skills:
+  - setvariable{var=caster.ohne_leine;value=0;type=INTEGER} @self
+  - variableadd{var=caster.zug;amount=1} @self
+  - skill{s=Nessy_Zerren_Stark} @PlayersInRadius{r=32}
+  - actionmessage{m="&a&lLeine halten! &f<caster.var.zug>&7/10"} @PlayersInRadius{r=32}
+  - effect:particles{p=splash;a=40;hs=1.5;vs=1;y=0.5;s=0.4} @selflocation
+  - skill{s=Nessy_Gestrandet}
+
+Nessy_Zerren_Stark:
+  TargetConditions:
+  - hastag{tag=boss_haelt} true
+  Skills:
+  - pull{velocity=0.7} @target
+  - sound{s=entity.fishing_bobber.retrieve;v=1;p=0.5} @target
+
+Nessy_Letzter_Zug_Frei:
+  Conditions:
+  - hastag{tag=nessy_gehalten} false
+  Skills:
+  - variableadd{var=caster.ohne_leine;amount=1} @self
+  - actionmessage{m="&c&lWirf die Angel auf sie! &7Die Leine reißt..."} @PlayersInRadius{r=32}
+  - skill{s=Nessy_Leine_Gerissen}
+
+Nessy_Leine_Gerissen:
+  Conditions:
+  - variableinrange{var=caster.ohne_leine;value=>3} true
+  Skills:
+  - setvariable{var=caster.gebissen;value=0;type=INTEGER} @self
+  - setvariable{var=caster.zug;value=0;type=INTEGER} @self
+  - healpercent{m=0.15} @self
+  - state{mid=nessy;s=fight_line;r=true} @self
+  - state{mid=nessy;s=submerge} @self
+  - defaultstate{mid=nessy;t=idle;s=hidden;li=0} @self
+  - sound{s=entity.item.break;v=2;p=0.6} @PlayersInRadius{r=48}
+  - message{m="&cDie Leine ist gerissen - Nessy erholt sich und flieht erneut."} @PlayersInRadius{r=48}
+  - delay 30
+  - delay 30
+  - skill{s=Nessy_Wellen} @self
+
+# 10 s gehalten: an Land gezogen. Jetzt oder nie.
+Nessy_Gestrandet:
+  Conditions:
+  - variableinrange{var=caster.zug;value=>9} true
+  Skills:
+  - setvariable{var=caster.phase;value=4;type=INTEGER} @self
+  - setvariable{var=caster.gebissen;value=0;type=INTEGER} @self
+  - state{mid=nessy;s=fight_line;r=true} @self
+  - state{mid=nessy;s=stranded} @self
+  - potion{type=GLOWING;duration=300;level=0;p=false} @self
+  - sound{s=entity.generic.big_fall;v=3;p=0.5} @PlayersInRadius{r=48}
+  - sendtitle{title="&a&lGestrandet!";subtitle="&7Jetzt oder nie - 15 Sekunden.";fadein=0;duration=40;fadeout=10} @PlayersInRadius{r=48}
+  - delay 300
+  - skill{s=Nessy_Zurueckgerutscht}
+
+Nessy_Zurueckgerutscht:
+  Conditions:
+  - variableequals{var=caster.phase;value=4} true
+  Skills:
+  - potionclear{types=GLOWING} @self
+  - state{mid=nessy;s=stranded;r=true} @self
+  - message{m="&2Nessy rutscht zurück ins Wasser!"} @PlayersInRadius{r=48}
+  - skill{s=Nessy_Flucht} @self

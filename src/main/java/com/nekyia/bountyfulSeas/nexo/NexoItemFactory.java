@@ -24,6 +24,7 @@ public final class NexoItemFactory {
     private static boolean complained;
     private static Method itemFromId;
     private static Method build;
+    private static Method idFromItem;
 
     private NexoItemFactory() {
     }
@@ -61,6 +62,19 @@ public final class NexoItemFactory {
         }
     }
 
+    /** The Nexo id an item was built from, or null for anything that is not a Nexo item. */
+    public static synchronized String idOf(ItemStack stack) {
+        resolve();
+        if (idFromItem == null || stack == null || stack.isEmpty()) {
+            return null;
+        }
+        try {
+            return idFromItem.invoke(null, stack) instanceof String id ? id : null;
+        } catch (ReflectiveOperationException | RuntimeException failure) {
+            return null;
+        }
+    }
+
     /**
      * Says so once, then goes quiet.
      *
@@ -83,9 +97,12 @@ public final class NexoItemFactory {
         }
         resolved = true;
         try {
-            itemFromId = Class.forName(NEXO_ITEMS).getMethod("itemFromId", String.class);
+            Class<?> items = Class.forName(NEXO_ITEMS);
+            itemFromId = items.getMethod("itemFromId", String.class);
+            idFromItem = items.getMethod("idFromItem", ItemStack.class);
         } catch (ReflectiveOperationException | RuntimeException absent) {
             itemFromId = null;
+            idFromItem = null;
         }
     }
 }

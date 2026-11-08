@@ -19,12 +19,11 @@
 #
 #   level: 1                   # defaults to 1: the angling level before it bites
 #   # A fish above the angler's level is not in the draw at all, so it never takes
-#   # a share of the odds it cannot pay out. Levels come from milestone XP.
+#   # a share of the odds it cannot pay out. Levels come from catch XP.
 #
 #   water_type: [ocean, river, lake, cave]
 #   terrain:    [desert, swamp, plains]
 #   vegetation: [cold, temperate, warm]
-#   depth:      [shallow, deep]
 #   modifier:   [coral, ice, swarm]
 #               coral/ice are matched against the water at the spot.
 #               swarm means the fish moves: it gathers in a few regions at a

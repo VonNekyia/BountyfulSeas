@@ -1,9 +1,7 @@
 package com.nekyia.bountyfulSeas.config;
 
 import com.nekyia.bountyfulSeas.fish.Rarity;
-import com.nekyia.bountyfulSeas.level.CompletionRule;
-import com.nekyia.bountyfulSeas.level.LevelCurve;
-import com.nekyia.bountyfulSeas.stats.Milestone;
+import com.nekyia.bountyfulSeas.level.ExperienceRule;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
@@ -76,7 +74,17 @@ public final class SettingsLoader {
                 enchantments(config, problems),
                 sizes(config, problems),
                 levels(config, problems),
-                tiers(config, problems));
+                tiers(config, problems),
+                boss(config, "kraken", "Kraken"),
+                boss(config, "nessy", "Nessy"));
+    }
+
+    private static Settings.BossSettings boss(FileConfiguration config, String key, String mob) {
+        return new Settings.BossSettings(
+                Math.clamp(config.getDouble(key + ".chance", 0.00004), 0, 1),
+                config.getInt(key + ".min-level", 6),
+                config.getString(key + ".mob", mob),
+                Math.clamp(config.getDouble(key + ".trophy-chance", 0.01), 0, 1));
     }
 
     /**
@@ -116,69 +124,74 @@ public final class SettingsLoader {
         return names;
     }
 
-    /** Milestone four, five and six up the levels - the curve the plugin ships. */
-    private static final CompletionRule DEFAULT_ANCHORS = new CompletionRule(List.of(
-            new CompletionRule.Anchor(5, 4, 0.60),
-            new CompletionRule.Anchor(10, 5, 0.60),
-            new CompletionRule.Anchor(15, 6, 0.80)));
+    /** What a catch of each tier pays when the config leaves one out. */
+    private static final Map<String, Long> DEFAULT_CATCH_EXPERIENCE = Map.of(
+            "common", 10L,
+            "uncommon", 15L,
+            "rare", 30L,
+            "misc", 2L,
+            "epic", 80L,
+            "legendary", 300L,
+            "treasure", 20L,
+            "mythic", 1000L,
+            "signature", 0L);
 
-    /** What a milestone pays, and what share of it a level asks for. */
+    /** What each level after the first costs when the config gives no list. */
+    private static final List<Long> DEFAULT_LEVEL_COSTS = List.of(
+            100L, 250L, 450L, 700L, 1000L, 1400L, 1900L, 2500L,
+            3200L, 4000L, 5000L, 6200L, 7600L, 9200L, 25000L);
+
+    /** What a catch pays, and what each level costs. */
     private static Settings.LevelSettings levels(FileConfiguration config, List<String> problems) {
-        long perStep = config.getLong("levels.experience-per-step", 10);
-        if (perStep < 0) {
-            problems.add("levels.experience-per-step was " + perStep
-                    + ", which cannot be negative; using 0");
-            perStep = 0;
+        Map<String, Long> perCatch = new LinkedHashMap<>(DEFAULT_CATCH_EXPERIENCE);
+        ConfigurationSection section = config.getConfigurationSection("levels.experience-per-catch");
+        if (section != null) {
+            for (String key : section.getKeys(false)) {
+                long value = section.getLong(key);
+                if (value < 0) {
+                    problems.add("levels.experience-per-catch." + key + " was " + value
+                            + ", which cannot be negative; using 0");
+                    value = 0;
+                }
+                perCatch.put(key.toLowerCase(Locale.ROOT), value);
+            }
         }
 
-        return new Settings.LevelSettings(perStep, anchors(config, problems));
+        long first = config.getLong("levels.first-catch-multiplier", 5);
+        if (first < 1) {
+            problems.add("levels.first-catch-multiplier was " + first + ", which is below 1; using 1");
+            first = 1;
+        }
+        double bigBonus = Math.max(0, config.getDouble("levels.big-fish-bonus", 0.5));
+        double bigShare = config.getDouble("levels.big-fish-share", 0.10);
+        if (bigShare <= 0 || bigShare > 1) {
+            problems.add("levels.big-fish-share was " + bigShare + ", which is not a share between 0 and 1; using 0.10");
+            bigShare = 0.10;
+        }
+        long perStep = Math.max(0, config.getLong("levels.experience-per-milestone-step", 5));
+
+        return new Settings.LevelSettings(
+                new ExperienceRule(perCatch, first, bigBonus, bigShare, perStep),
+                costs(config, problems));
     }
 
-    /**
-     * The levels that are priced off the roster, lowest first.
-     *
-     * <p>An anchor that cannot be read is skipped rather than guessed at, and if
-     * that leaves none the shipped three stand in: a curve with no anchors has no
-     * thresholds, which would hand everyone the last level.
-     */
-    private static CompletionRule anchors(FileConfiguration config, List<String> problems) {
-        List<CompletionRule.Anchor> anchors = new ArrayList<>();
-        List<Map<?, ?>> listed = config.getMapList("levels.anchors");
+    /** What each level costs. A list that cannot be read is replaced whole, never half used. */
+    private static List<Long> costs(FileConfiguration config, List<String> problems) {
+        List<?> listed = config.getList("levels.costs");
+        if (listed == null || listed.isEmpty()) {
+            return DEFAULT_LEVEL_COSTS;
+        }
+        List<Long> costs = new ArrayList<>();
         for (int index = 0; index < listed.size(); index++) {
-            Map<?, ?> entry = listed.get(index);
-            String where = "levels.anchors[" + index + "]";
-
-            int level = number(entry.get("level"), 0).intValue();
-            if (level <= LevelCurve.FIRST_LEVEL) {
-                problems.add(where + ".level was " + entry.get("level") + ", which is not a level"
-                        + " above " + LevelCurve.FIRST_LEVEL + "; skipping the anchor");
-                continue;
+            long cost = number(listed.get(index), 0).longValue();
+            if (cost < 1) {
+                problems.add("levels.costs[" + index + "] was " + listed.get(index)
+                        + ", which is not a cost of at least 1; using the shipped costs");
+                return DEFAULT_LEVEL_COSTS;
             }
-
-            int step = number(entry.get("completed-at-milestone"), 0).intValue();
-            if (step < 1 || step > Milestone.values().length) {
-                problems.add(where + ".completed-at-milestone was " + entry.get("completed-at-milestone")
-                        + ", which is not a milestone between 1 and " + Milestone.values().length
-                        + "; skipping the anchor");
-                continue;
-            }
-
-            double share = number(entry.get("completion"), 0).doubleValue();
-            if (share <= 0 || share > 1) {
-                problems.add(where + ".completion was " + entry.get("completion")
-                        + ", which is not a share between 0 and 1; skipping the anchor");
-                continue;
-            }
-            anchors.add(new CompletionRule.Anchor(level, step, share));
+            costs.add(cost);
         }
-
-        if (anchors.isEmpty()) {
-            if (!listed.isEmpty()) {
-                problems.add("levels.anchors left nothing usable; using the shipped anchors");
-            }
-            return DEFAULT_ANCHORS;
-        }
-        return new CompletionRule(anchors);
+        return costs;
     }
 
     /** A config number, whatever numeric type it was written as. */
@@ -194,7 +207,7 @@ public final class SettingsLoader {
      * one both make the curve meaningless rather than merely odd.
      */
     private static Settings.SizeSettings sizes(FileConfiguration config, List<String> problems) {
-        double shape = config.getDouble("sizes.shape", 3);
+        double shape = config.getDouble("sizes.shape", 1.5);
         if (shape < MIN_SIZE_SHAPE) {
             problems.add("sizes.shape was " + shape + ", which is below " + MIN_SIZE_SHAPE
                     + "; using " + MIN_SIZE_SHAPE);
@@ -208,12 +221,18 @@ public final class SettingsLoader {
             smallest = 0.25;
         }
 
-        long odds = config.getLong("sizes.record-odds", 1_000_000);
+        long odds = config.getLong("sizes.record-odds", 10_000_000);
         if (odds < 1) {
             problems.add("sizes.record-odds was " + odds + ", which cannot be below 1; using 1");
             odds = 1;
         }
-        return new Settings.SizeSettings(shape, smallest, odds, brackets(config, problems));
+        double tailFrom = config.getDouble("sizes.tail-from", 0.80);
+        if (tailFrom <= smallest || tailFrom > 1) {
+            problems.add("sizes.tail-from was " + tailFrom + ", which has to be above sizes.smallest"
+                    + " and at most 1; using 1, which turns the tail off");
+            tailFrom = 1;
+        }
+        return new Settings.SizeSettings(shape, smallest, odds, tailFrom, brackets(config, problems));
     }
 
     /**

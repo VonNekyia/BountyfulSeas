@@ -91,6 +91,14 @@ tasks {
         mainClass = "com.nekyia.bountyfulSeas.nexo.BlueprintCheck"
     }
 
+    //   gradle checkLevels
+    register<JavaExec>("checkLevels") {
+        group = "verification"
+        description = "Checks the experience arithmetic, the level costs, the length curve and the leaderboards."
+        classpath = sourceSets["test"].runtimeClasspath
+        mainClass = "com.nekyia.bountyfulSeas.level.LevelCheck"
+    }
+
     // Asks the real selector whether every fish is in the draw somewhere in a
     // scanned world. Not a unit test and not JUnit: it needs a real water map, so
     // it takes one as an argument and fails loudly when something is unreachable.

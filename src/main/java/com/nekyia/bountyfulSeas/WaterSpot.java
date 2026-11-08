@@ -1,7 +1,6 @@
 package com.nekyia.bountyfulSeas;
 
 import com.nekyia.bountyfulSeas.fish.Condition;
-import com.nekyia.bountyfulSeas.fish.Depth;
 import com.nekyia.bountyfulSeas.fish.Modifier;
 import com.nekyia.bountyfulSeas.fish.Terrain;
 import com.nekyia.bountyfulSeas.fish.Vegetation;
@@ -9,7 +8,6 @@ import com.nekyia.bountyfulSeas.fish.WaterType;
 import com.nekyia.bountyfulSeas.fishing.WaterConditions;
 import com.nekyia.bountyfulSeas.swarm.Swarms;
 import com.nekyia.bountyfulSeas.water.WaterKind;
-import com.nekyia.bountyfulSeas.water.WaterDepth;
 import com.nekyia.bountyfulSeas.water.WaterModifier;
 import com.nekyia.bountyfulSeas.water.WaterRegion;
 import com.nekyia.bountyfulSeas.water.WaterTemperature;
@@ -31,14 +29,13 @@ import java.util.Set;
  *       swamp reads as still water standing in swampy ground.</li>
  *   <li>What a fish calls <em>vegetation</em> holds warm/temperate/cold, which is
  *       the map's <em>temperature</em>, not its vegetation.</li>
- *   <li>The map bands depth three ways; fish only know shallow and deep.</li>
+ *   <li>The map measures depth; fish ignore it for now.</li>
  * </ul>
  */
 record WaterSpot(
         WaterType waterType,
         Terrain terrain,
         Vegetation vegetation,
-        Depth depth,
         Set<Modifier> modifiers,
         Set<Condition> conditions,
         int regionId,
@@ -59,7 +56,6 @@ record WaterSpot(
                 waterTypeOf(region),
                 terrain(region),
                 vegetation(region.temperature()),
-                depth(region.depth()),
                 modifiers(region),
                 conditions,
                 region.id(),
@@ -68,15 +64,6 @@ record WaterSpot(
 
     static WaterSpot of(WaterRegion region, World world, Swarms swarms) {
         return of(region, conditionsOf(world), swarms);
-    }
-
-    /**
-     * The map bands depth at 10 and 30 blocks; a fish only knows shallow and deep.
-     * Only the map's deepest band counts as deep, so a normal lake stays shallow
-     * water rather than being promoted past every shallow-water fish.
-     */
-    private static Depth depth(WaterDepth measured) {
-        return measured == WaterDepth.DEEP ? Depth.DEEP : Depth.SHALLOW;
     }
 
     /** Shared with the map adapter, so both colour and catch agree on the type. */
